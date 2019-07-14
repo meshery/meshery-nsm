@@ -1,7 +1,7 @@
 
 FROM golang:1.12.5 as bd
 RUN adduser --disabled-login appuser
-WORKDIR /github.com/layer5io/meshery
+WORKDIR /github.com/layer5io/meshery-nsm
 ADD . .
 RUN cd cmd; go build -ldflags="-w -s" -a -o /meshery-nsm .
 RUN find . -name "*.go" -type f -delete; mv nsm /
