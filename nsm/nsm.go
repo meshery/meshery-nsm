@@ -1,26 +1,25 @@
 package nsm
 
 import (
-	"github.com/layer5io/meshery-nsm/meshes"
-	"github.com/sirupsen/logrus"
+	"bytes"
 	"context"
-        "io"
+	"fmt"
+	"io"
 	"io/ioutil"
-        "github.com/pkg/errors"
-        "k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"path"
+	"strings"
+	"text/template"
+	"time"
+
+	"github.com/ghodss/yaml"
+	"github.com/layer5io/meshery-nsm/meshes"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
+	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-        "fmt"
-        "strings"
-        "bytes"
-        "path"
-        "time"
-        "text/template"
-        "github.com/ghodss/yaml"
-        metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-        "k8s.io/apimachinery/pkg/runtime"
-
 )
-
 
 func (nsmClient *NSMClient) getComponentYAML(fileName string) (string, error) {
 	/*specificVersionName, err := iClient.downloadIstio()
@@ -53,11 +52,10 @@ func (nsmClient *NSMClient) MeshName(context.Context, *meshes.MeshNameRequest) (
 	return &meshes.MeshNameResponse{Name: "Network Service Mesh"}, nil
 }
 
-
 func (nsmClient *NSMClient) createNamespace(ctx context.Context, namespace string) error {
 	logrus.Debugf("creating namespace: %s", namespace)
 	yamlFileContents, err := nsmClient.getComponentYAML("file location")
-        logrus.Infof("Error : %s ",err)
+	logrus.Infof("Error : %s ", err)
 	if err := nsmClient.applyConfigChange(ctx, yamlFileContents, namespace, false); err != nil {
 		return err
 	}
@@ -130,7 +128,7 @@ func (nsmClient *NSMClient) applyRulePayload(ctx context.Context, namespace stri
 		return errors.New("mesh client has not been created")
 	}
 	// logrus.Debugf("received yaml bytes: %s", newBytes)
-	jsonBytes, err := yaml.YAMLToJSON(newBytes) 
+	jsonBytes, err := yaml.YAMLToJSON(newBytes)
 	if err != nil {
 		err = errors.Wrapf(err, "unable to convert yaml to json")
 		logrus.Error(err)
@@ -205,7 +203,6 @@ func (nsmClient *NSMClient) executeRule(ctx context.Context, data *unstructured.
 	}
 	return nil
 }
-
 
 func (nsmClient *NSMClient) createResource(ctx context.Context, res schema.GroupVersionResource, data *unstructured.Unstructured) error {
 	_, err := nsmClient.k8sDynamicClient.Resource(res).Namespace(data.GetNamespace()).Create(data, metav1.CreateOptions{})
@@ -341,7 +338,7 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 			return
 		}()
 		return &meshes.ApplyRuleResponse{}, nil
-	
+
 	default:
 		yamlFileContents, err = nsmClient.executeTemplate(ctx, arReq.Username, arReq.Namespace, op.templateName)
 		if err != nil {
@@ -365,7 +362,7 @@ func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool
 			return err
 		}
 	}*/
-	 nsmClient.download_NSM()
+	nsmClient.downloadNSM()
 	/*if err != nil {
 		return err
 	}
@@ -374,7 +371,6 @@ func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool
 	}*/
 	return nil
 }
-
 
 func (nsmClient *NSMClient) executeTemplate(ctx context.Context, username, namespace, templateName string) (string, error) {
 	tmpl, err := template.ParseFiles(path.Join("nsm", "config_templates", templateName))
