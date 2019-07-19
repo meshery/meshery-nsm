@@ -11,7 +11,7 @@ docker:
 docker-run:
 	(docker rm -f meshery-nsm) || true
 	docker run --name meshery-nsm -d \
-	-p 10005:10005 \
+	-p 10004:10004 \
 	-e DEBUG=true \
 	layer5/meshery-nsm
 
