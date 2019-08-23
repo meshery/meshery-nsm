@@ -12,16 +12,19 @@ type supportedOperation struct {
 }
 
 const (
-	customOpCommand         = "custom"
-	installNSMCommand     = "nsm_install"
+	customOpCommand    = "custom"
+	installNSMCommand  = "nsm_install"
+	installICMPCommand = "icmp_install"
 )
 
 var supportedOps = map[string]supportedOperation{
 	installNSMCommand: {
 		name: "Install Network Service Mesh",
-        },
+	},
+	installICMPCommand: {
+		name: "Install ICMP Application",
+	},
 	customOpCommand: {
 		name: "Custom YAML",
 	},
 }
-
