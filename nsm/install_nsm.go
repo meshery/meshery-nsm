@@ -16,8 +16,6 @@ package nsm
 
 import (
 	"context"
-	"github.com/solo-io/go-utils/contextutils"
-	"github.com/solo-io/go-utils/installutils/helmchart"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/manifest"
 	"k8s.io/helm/pkg/proto/hapi/chart"
@@ -44,12 +42,6 @@ func renderManifests(ctx context.Context, c *chart.Chart, values, releaseName, n
 		return nil, err
 	}
 
-	for file, man := range renderedTemplates {
-		if helmchart.IsEmptyManifest(man) {
-			contextutils.LoggerFrom(ctx).Warnf("is an empty manifest, removing %v", file)
-			delete(renderedTemplates, file)
-		}
-	}
 	manifests := manifest.SplitManifests(renderedTemplates)
 	return tiller.SortByKind(manifests), nil
 }
