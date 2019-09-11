@@ -16,9 +16,12 @@ package nsm
 
 import (
 	"context"
+<<<<<<< HEAD
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	git "gopkg.in/src-d/go-git.v4"
+=======
+>>>>>>> 76c01bd81436d681cf196ee6bc3472a760f858dd
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/manifest"
 	"k8s.io/helm/pkg/proto/hapi/chart"
