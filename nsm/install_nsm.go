@@ -16,15 +16,57 @@ package nsm
 
 import (
 	"context"
-	"github.com/solo-io/go-utils/contextutils"
-	"github.com/solo-io/go-utils/installutils/helmchart"
+	"github.com/pkg/errors"
+	"github.com/sirupsen/logrus"
+	git "gopkg.in/src-d/go-git.v4"
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/manifest"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/renderutil"
 	"k8s.io/helm/pkg/tiller"
 	"k8s.io/helm/pkg/timeconv"
+	"log"
+	"os"
+	"path"
+	"time"
 )
+const (
+	repoURL     = "https://github.com/networkservicemesh/networkservicemesh.git"
+	cachePeriod = 24 * time.Hour
+)
+var (
+	destinationFolder             = path.Join(os.TempDir(), "NetworkServiceMesh")
+)
+
+func (nsmClient *NSMClient) downloadNSM() {
+
+	_, err := os.Stat(destinationFolder)
+
+	if os.IsNotExist(err) {
+		err := os.MkdirAll(destinationFolder, os.ModePerm)
+		if err != nil {
+			err = errors.Wrapf(err, "Unable to create a folder  %s", destinationFolder)
+			logrus.Error(err)
+
+		}
+
+		// CLean up temporary directory when done.
+		//	defer os.RemoveAll(dir)
+
+		// Clone the repository into the temp dir
+		logrus.Infof("Cloning NSM repo...")
+		_, err = git.PlainClone(destinationFolder, false, &git.CloneOptions{
+			URL: repoURL,
+		})
+
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		logrus.Infof("Clone of NSM repo completed in ", destinationFolder)
+	}
+
+}
 
 func renderManifests(ctx context.Context, c *chart.Chart, values, releaseName, namespace, kubeVersion string) ([]manifest.Manifest, error) {
 
@@ -44,12 +86,6 @@ func renderManifests(ctx context.Context, c *chart.Chart, values, releaseName, n
 		return nil, err
 	}
 
-	for file, man := range renderedTemplates {
-		if helmchart.IsEmptyManifest(man) {
-			contextutils.LoggerFrom(ctx).Warnf("is an empty manifest, removing %v", file)
-			delete(renderedTemplates, file)
-		}
-	}
 	manifests := manifest.SplitManifests(renderedTemplates)
 	return tiller.SortByKind(manifests), nil
 }

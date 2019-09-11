@@ -1,18 +1,15 @@
 package nsm
 
 import (
-
+	"github.com/ghodss/yaml"
 	"github.com/layer5io/meshery-nsm/meshes"
 	"github.com/sirupsen/logrus"
 	"k8s.io/client-go/dynamic"
 	"k8s.io/client-go/kubernetes"
+	"k8s.io/client-go/tools/clientcmd"
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
-
-	"github.com/ghodss/yaml"
 )
-
 
 type NSMClient struct {
 	config           *rest.Config

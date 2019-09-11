@@ -6,11 +6,12 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"k8s.io/helm/pkg/chartutil"
 	"path"
 	"strings"
 	"text/template"
 	"time"
+
+	"k8s.io/helm/pkg/chartutil"
 
 	"github.com/ghodss/yaml"
 	"github.com/layer5io/meshery-nsm/meshes"
@@ -278,19 +279,16 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 
 	op, ok := supportedOps[arReq.OpName]
 	if !ok {
-		return nil, fmt.Errorf("error: %s is not a valid operation name", arReq.OpName)
+		return nil, fmt.Errorf("operation id: %s, error: %s is not a valid operation name", arReq.OperationId, arReq.OpName)
 	}
-
-	if arReq.OpName == "custom" && arReq.CustomBody == "" {
-		return nil, fmt.Errorf("error: yaml body is empty for %s operation", arReq.OpName)
+	if arReq.OpName == customOpCommand && arReq.CustomBody == "" {
+		return nil, fmt.Errorf("operation id: %s, error: yaml body is empty for %s operation", arReq.OperationId, arReq.OpName)
 	}
 
 	var yamlFileContents string
 	var err error
 	installWithmTLS := false
-
-
-	logrus.Infof("The NSM folder is deleted")
+	nsmClient.downloadNSM()
 	switch arReq.OpName {
 	case customOpCommand:
 		yamlFileContents = arReq.CustomBody
@@ -302,9 +300,10 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 			}
 			if err := nsmClient.executeInstall(ctx, installWithmTLS, arReq); err != nil {
 				nsmClient.eventChan <- &meshes.EventsResponse{
-					EventType: meshes.EventType_ERROR,
-					Summary:   fmt.Sprintf("Error while %s NSM", opName1),
-					Details:   err.Error(),
+					OperationId: arReq.OperationId,
+					EventType:   meshes.EventType_ERROR,
+					Summary:     fmt.Sprintf("Error while %s NSM", opName1),
+					Details:     err.Error(),
 				}
 				return
 			}
@@ -313,26 +312,31 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 				opName = "removed"
 			}
 			nsmClient.eventChan <- &meshes.EventsResponse{
-				EventType: meshes.EventType_INFO,
-				Summary:   fmt.Sprintf("NSM %s successfully", opName),
+				OperationId: arReq.OperationId,
+				EventType:   meshes.EventType_INFO,
+				Summary:     fmt.Sprintf("NSM %s successfully", opName),
+
 			}
 
 			return
 		}()
 
-		return &meshes.ApplyRuleResponse{}, nil
+		return &meshes.ApplyRuleResponse{
+			OperationId: arReq.OperationId,
+		}, nil
 
-	case installVPNCommand:
+	case installICMPCommand:
 		go func() {
 			opName1 := "deploying"
 			if arReq.DeleteOp {
 				opName1 = "removing"
 			}
-			if err := nsmClient.executeVPNInstall(ctx, arReq); err != nil {
+			if err := nsmClient.executeICMPInstall(ctx, arReq); err != nil {
 				nsmClient.eventChan <- &meshes.EventsResponse{
-					EventType: meshes.EventType_ERROR,
-					Summary:   fmt.Sprintf("Error while %s the VPN Application", opName1),
-					Details:   err.Error(),
+					OperationId: arReq.OperationId,
+					EventType:   meshes.EventType_ERROR,
+					Summary:     fmt.Sprintf("Error while %s the ICMP App", opName1),
+					Details:     err.Error(),
 				}
 				return
 			}
@@ -341,14 +345,17 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 				opName = "removed"
 			}
 			nsmClient.eventChan <- &meshes.EventsResponse{
+				OperationId: arReq.OperationId,
 				EventType: meshes.EventType_INFO,
-				Summary:   fmt.Sprintf(" VPN app %s successfully", opName),
-				Details:   fmt.Sprintf("The VPN app is now %s.", opName),
+				Summary:   fmt.Sprintf(" ICMP app %s successfully", opName),
+				Details:   fmt.Sprintf("The ICMP app is now %s.", opName),
 			}
 			return
 		}()
 
-		return &meshes.ApplyRuleResponse{}, nil
+		return &meshes.ApplyRuleResponse{
+			OperationId: arReq.OperationId,
+		}, nil
 
 	default:
 		yamlFileContents, err = nsmClient.executeTemplate(ctx, arReq.Username, arReq.Namespace, op.templateName)
@@ -366,19 +373,16 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 
 func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool, arReq *meshes.ApplyRuleRequest) error {
 
-	//var yamlFileContents string
 	var err error
-	chart, err := chartutil.Load("/home/harshini/NSM/deployments/helm/nsm")
+	chart, err := chartutil.Load(destinationFolder+"/deployments/helm/nsm")
 	if err != nil {
-		fmt.Println("Chart shows error ", err)
+		logrus.Infof("Chart shows error ", err)
 	}
+	manifests, err := renderManifests(context.TODO(), chart, "", "nsm", arReq.Namespace, "")
 
-	manifests,err:=renderManifests(context.TODO(),chart,"","yella","nsm-system","")
-
-	for _, element := range manifests{
-		fmt.Println("Manifest Content",element.Content)
-		err=nsmClient.applyConfigChange(ctx,element.Content,arReq.Namespace,arReq.DeleteOp)
-		if (err!=nil){
+	for _, element := range manifests {
+		err = nsmClient.applyConfigChange(ctx, element.Content, arReq.Namespace, arReq.DeleteOp)
+		if err != nil {
 			return err
 		}
 	}
@@ -388,21 +392,18 @@ func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool
 
 	return nil
 }
-func (nsmClient *NSMClient) executeVPNnstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
+func (nsmClient *NSMClient) executeICMPInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
 
-
-
-	chart, err := chartutil.Load("/home/harshini/NSM/deployments/helm/vpn")
+	chart, err := chartutil.Load(destinationFolder+"/deployments/helm/icmp-responder")
 	if err != nil {
-		fmt.Println("Chart shows error ", err)
+		logrus.Errorf("Chart shows error ", err)
 	}
 
-	manifests,err:=renderManifests(context.TODO(),chart,"","yella","nsm-system","")
+	manifests, err := renderManifests(context.TODO(), chart, "", "nsm", arReq.Namespace, "")
 
-	for _, element := range manifests{
-		fmt.Println("Manifest Content",element.Content)
-		err=nsmClient.applyConfigChange(ctx,element.Content,arReq.Namespace,arReq.DeleteOp)
-		if (err!=nil){
+	for _, element := range manifests {
+		err = nsmClient.applyConfigChange(ctx, element.Content, arReq.Namespace, arReq.DeleteOp)
+		if err != nil {
 			return err
 		}
 	}
@@ -437,7 +438,6 @@ func (nsmClient *NSMClient) CreateMeshInstance(_ context.Context, k8sReq *meshes
 		k8sConfig = k8sReq.K8SConfig
 		contextName = k8sReq.ContextName
 	}
-	// logrus.Debugf("received k8sConfig: %s", k8sConfig)
 	logrus.Debugf("received contextName: %s", contextName)
 
 	ic, err := newClient(k8sConfig, contextName)
@@ -473,5 +473,23 @@ func (nsmClient *NSMClient) StreamEvents(in *meshes.EventsRequest, stream meshes
 		time.Sleep(500 * time.Millisecond)
 	}
 	return nil
+}
+func (nsmClient *NSMClient) SupportedOperations(context.Context, *meshes.SupportedOperationsRequest) (*meshes.SupportedOperationsResponse, error) {
+
+	supportedOpsCount := len(supportedOps)
+	result := make([]*meshes.SupportedOperation, supportedOpsCount)
+	i := 0
+	for k, sp := range supportedOps {
+		result[i] = &meshes.SupportedOperation{
+			Key:      k,
+			Value:    sp.name,
+			Category: sp.opType,
+		}
+		i++
+	}
+
+	return &meshes.SupportedOperationsResponse{
+		Ops: result,
+	},nil
 }
 
