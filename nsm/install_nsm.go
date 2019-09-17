@@ -16,29 +16,26 @@ package nsm
 
 import (
 	"context"
-<<<<<<< HEAD
+	"log"
+	"os"
+	"path"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	git "gopkg.in/src-d/go-git.v4"
-=======
->>>>>>> 76c01bd81436d681cf196ee6bc3472a760f858dd
 	"k8s.io/helm/pkg/chartutil"
 	"k8s.io/helm/pkg/manifest"
 	"k8s.io/helm/pkg/proto/hapi/chart"
 	"k8s.io/helm/pkg/renderutil"
 	"k8s.io/helm/pkg/tiller"
 	"k8s.io/helm/pkg/timeconv"
-	"log"
-	"os"
-	"path"
-	"time"
 )
+
 const (
-	repoURL     = "https://github.com/networkservicemesh/networkservicemesh.git"
-	cachePeriod = 24 * time.Hour
+	repoURL = "https://github.com/networkservicemesh/networkservicemesh.git"
 )
+
 var (
-	destinationFolder             = path.Join(os.TempDir(), "NetworkServiceMesh")
+	destinationFolder = path.Join(os.TempDir(), "NetworkServiceMesh")
 )
 
 func (nsmClient *NSMClient) downloadNSM() {
@@ -92,12 +89,3 @@ func renderManifests(ctx context.Context, c *chart.Chart, values, releaseName, n
 	manifests := manifest.SplitManifests(renderedTemplates)
 	return tiller.SortByKind(manifests), nil
 }
-
-
-
-
-
-
-
-
-

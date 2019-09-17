@@ -39,6 +39,44 @@ func (nsmClient *NSMClient) createNamespace(ctx context.Context, namespace strin
 
 	return nil
 }
+func (nsmClient *NSMClient) labelNamespaceForAutoInjection(ctx context.Context, namespace string) error {
+	ns := &unstructured.Unstructured{}
+	res := schema.GroupVersionResource{
+		Version:  "v1",
+		Resource: "namespaces",
+	}
+	ns.SetName(namespace)
+	ns, err := nsmClient.getResource(ctx, res, ns)
+	if err != nil {
+		if strings.HasSuffix(err.Error(), "not found") {
+			if err = nsmClient.createNamespace(ctx, namespace); err != nil {
+				return err
+			}
+
+			ns := &unstructured.Unstructured{}
+			ns.SetName(namespace)
+			ns, err = nsmClient.getResource(ctx, res, ns)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	logrus.Debugf("retrieved namespace: %+#v", ns)
+	if ns == nil {
+		ns = &unstructured.Unstructured{}
+		ns.SetName(namespace)
+	}
+	ns.SetLabels(map[string]string{
+		"istio-injection": "enabled",
+	})
+	err = nsmClient.updateResource(ctx, res, ns)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 func (nsmClient *NSMClient) applyConfigChange(ctx context.Context, yamlFileContents, namespace string, delete bool) error {
 	// yamls := strings.Split(yamlFileContents, "---")
 	yamls, err := nsmClient.splitYAML(yamlFileContents)
@@ -289,6 +327,11 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 	var err error
 	installWithmTLS := false
 	nsmClient.downloadNSM()
+	if !arReq.DeleteOp {
+		if err := nsmClient.labelNamespaceForAutoInjection(ctx, arReq.Namespace); err != nil {
+			logrus.Errorf("Namespace Creation ", err)
+		}
+	}
 	switch arReq.OpName {
 	case customOpCommand:
 		yamlFileContents = arReq.CustomBody
@@ -315,7 +358,6 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 				OperationId: arReq.OperationId,
 				EventType:   meshes.EventType_INFO,
 				Summary:     fmt.Sprintf("NSM %s successfully", opName),
-
 			}
 
 			return
@@ -346,9 +388,9 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 			}
 			nsmClient.eventChan <- &meshes.EventsResponse{
 				OperationId: arReq.OperationId,
-				EventType: meshes.EventType_INFO,
-				Summary:   fmt.Sprintf(" ICMP app %s successfully", opName),
-				Details:   fmt.Sprintf("The ICMP app is now %s.", opName),
+				EventType:   meshes.EventType_INFO,
+				Summary:     fmt.Sprintf(" ICMP app %s successfully", opName),
+				Details:     fmt.Sprintf("The ICMP app is now %s.", opName),
 			}
 			return
 		}()
@@ -374,7 +416,7 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool, arReq *meshes.ApplyRuleRequest) error {
 
 	var err error
-	chart, err := chartutil.Load(destinationFolder+"/deployments/helm/nsm")
+	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/nsm")
 	if err != nil {
 		logrus.Infof("Chart shows error ", err)
 	}
@@ -394,7 +436,7 @@ func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool
 }
 func (nsmClient *NSMClient) executeICMPInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
 
-	chart, err := chartutil.Load(destinationFolder+"/deployments/helm/icmp-responder")
+	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/vpp-icmp-responder")
 	if err != nil {
 		logrus.Errorf("Chart shows error ", err)
 	}
@@ -412,6 +454,7 @@ func (nsmClient *NSMClient) executeICMPInstall(ctx context.Context, arReq *meshe
 	}
 	return nil
 }
+
 func (nsmClient *NSMClient) executeTemplate(ctx context.Context, username, namespace, templateName string) (string, error) {
 	tmpl, err := template.ParseFiles(path.Join("nsm", "config_templates", templateName))
 	if err != nil {
@@ -490,6 +533,5 @@ func (nsmClient *NSMClient) SupportedOperations(context.Context, *meshes.Support
 
 	return &meshes.SupportedOperationsResponse{
 		Ops: result,
-	},nil
+	}, nil
 }
-
