@@ -23,7 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
-//CreateMeshInstance is called from UI
+// MeshName just returns the name of the mesh the client is representing
 func (nsmClient *NSMClient) MeshName(context.Context, *meshes.MeshNameRequest) (*meshes.MeshNameResponse, error) {
 	return &meshes.MeshNameResponse{Name: "Network Service Mesh"}, nil
 }
