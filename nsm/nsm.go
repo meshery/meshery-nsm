@@ -23,6 +23,7 @@ import (
 	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
+// MeshName just returns the name of the mesh the client is representing
 func (nsmClient *NSMClient) MeshName(context.Context, *meshes.MeshNameRequest) (*meshes.MeshNameResponse, error) {
 	return &meshes.MeshNameResponse{Name: "Network Service Mesh"}, nil
 }
@@ -309,7 +310,7 @@ func (nsmClient *NSMClient) updateResource(ctx context.Context, res schema.Group
 	logrus.Infof("Updated Resource of type: %s and name: %s", data.GetKind(), data.GetName())
 	return nil
 }
-
+// ApplyOperation is a method invoked to apply a particular operation on the mesh in a namespace
 func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.ApplyRuleRequest) (*meshes.ApplyRuleResponse, error) {
 	if arReq == nil {
 		return nil, errors.New("mesh client has not been created")
@@ -474,6 +475,7 @@ func (nsmClient *NSMClient) executeTemplate(ctx context.Context, username, names
 	}
 	return buf.String(), nil
 }
+//CreateMeshInstance is called from UI
 func (nsmClient *NSMClient) CreateMeshInstance(_ context.Context, k8sReq *meshes.CreateMeshInstanceRequest) (*meshes.CreateMeshInstanceResponse, error) {
 	var k8sConfig []byte
 	contextName := ""
@@ -495,6 +497,8 @@ func (nsmClient *NSMClient) CreateMeshInstance(_ context.Context, k8sReq *meshes
 	nsmClient.config = ic.config
 	return &meshes.CreateMeshInstanceResponse{}, nil
 }
+
+// StreamEvents - streams generated/collected events to the client
 func (nsmClient *NSMClient) StreamEvents(in *meshes.EventsRequest, stream meshes.MeshService_StreamEventsServer) error {
 	logrus.Debugf("waiting on event stream. . .")
 	for {
@@ -517,6 +521,7 @@ func (nsmClient *NSMClient) StreamEvents(in *meshes.EventsRequest, stream meshes
 	}
 	return nil
 }
+
 // SupportedOperations - returns a list of supported operations on the mesh
 func (nsmClient *NSMClient) SupportedOperations(context.Context, *meshes.SupportedOperationsRequest) (*meshes.SupportedOperationsResponse, error) {
 
