@@ -3,31 +3,24 @@ package nsm
 import (
 	"bytes"
 	"context"
-	"crypto/x509"
-	"encoding/pem"
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"path"
-	"path/filepath"
 	"strings"
 	"text/template"
 	"time"
+
+	"k8s.io/helm/pkg/chartutil"
 
 	"github.com/ghodss/yaml"
 	"github.com/layer5io/meshery-nsm/meshes"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
-	arv1beta1 "k8s.io/api/admissionregistration/v1beta1"
-	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
-	"k8s.io/apimachinery/pkg/util/intstr"
-	"k8s.io/client-go/util/cert"
-	"k8s.io/kubernetes/cmd/kubeadm/app/util/pkiutil"
 )
 
 func (nsmClient *NSMClient) MeshName(context.Context, *meshes.MeshNameRequest) (*meshes.MeshNameResponse, error) {
@@ -44,6 +37,44 @@ func (nsmClient *NSMClient) createNamespace(ctx context.Context, namespace strin
 		return err
 	}
 
+	return nil
+}
+func (nsmClient *NSMClient) labelNamespaceForAutoInjection(ctx context.Context, namespace string) error {
+	ns := &unstructured.Unstructured{}
+	res := schema.GroupVersionResource{
+		Version:  "v1",
+		Resource: "namespaces",
+	}
+	ns.SetName(namespace)
+	ns, err := nsmClient.getResource(ctx, res, ns)
+	if err != nil {
+		if strings.HasSuffix(err.Error(), "not found") {
+			if err = nsmClient.createNamespace(ctx, namespace); err != nil {
+				return err
+			}
+
+			ns := &unstructured.Unstructured{}
+			ns.SetName(namespace)
+			ns, err = nsmClient.getResource(ctx, res, ns)
+			if err != nil {
+				return err
+			}
+		} else {
+			return err
+		}
+	}
+	logrus.Debugf("retrieved namespace: %+#v", ns)
+	if ns == nil {
+		ns = &unstructured.Unstructured{}
+		ns.SetName(namespace)
+	}
+	ns.SetLabels(map[string]string{
+		"istio-injection": "enabled",
+	})
+	err = nsmClient.updateResource(ctx, res, ns)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 func (nsmClient *NSMClient) applyConfigChange(ctx context.Context, yamlFileContents, namespace string, delete bool) error {
@@ -286,19 +317,21 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 
 	op, ok := supportedOps[arReq.OpName]
 	if !ok {
-		return nil, fmt.Errorf("error: %s is not a valid operation name", arReq.OpName)
+		return nil, fmt.Errorf("operation id: %s, error: %s is not a valid operation name", arReq.OperationId, arReq.OpName)
 	}
-
-	if arReq.OpName == "custom" && arReq.CustomBody == "" {
-		return nil, fmt.Errorf("error: yaml body is empty for %s operation", arReq.OpName)
+	if arReq.OpName == customOpCommand && arReq.CustomBody == "" {
+		return nil, fmt.Errorf("operation id: %s, error: yaml body is empty for %s operation", arReq.OperationId, arReq.OpName)
 	}
 
 	var yamlFileContents string
 	var err error
 	installWithmTLS := false
 	nsmClient.downloadNSM()
-
-	logrus.Infof("The NSM folder is deleted")
+	if !arReq.DeleteOp {
+		if err := nsmClient.labelNamespaceForAutoInjection(ctx, arReq.Namespace); err != nil {
+			logrus.Errorf("Namespace Creation ", err)
+		}
+	}
 	switch arReq.OpName {
 	case customOpCommand:
 		yamlFileContents = arReq.CustomBody
@@ -307,16 +340,13 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 			opName1 := "deploying"
 			if arReq.DeleteOp {
 				opName1 = "removing"
-			} else {
-
-				nsmClient.createNamespace(ctx, "nsm-system")
-				nsmClient.DeployAdmissionWebhook(arReq.Namespace)
 			}
 			if err := nsmClient.executeInstall(ctx, installWithmTLS, arReq); err != nil {
 				nsmClient.eventChan <- &meshes.EventsResponse{
-					EventType: meshes.EventType_ERROR,
-					Summary:   fmt.Sprintf("Error while %s NSM", opName1),
-					Details:   err.Error(),
+					OperationId: arReq.OperationId,
+					EventType:   meshes.EventType_ERROR,
+					Summary:     fmt.Sprintf("Error while %s NSM", opName1),
+					Details:     err.Error(),
 				}
 				return
 			}
@@ -325,26 +355,30 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 				opName = "removed"
 			}
 			nsmClient.eventChan <- &meshes.EventsResponse{
-				EventType: meshes.EventType_INFO,
-				Summary:   fmt.Sprintf("NSM %s successfully", opName),
+				OperationId: arReq.OperationId,
+				EventType:   meshes.EventType_INFO,
+				Summary:     fmt.Sprintf("NSM %s successfully", opName),
 			}
 
 			return
 		}()
 
-		return &meshes.ApplyRuleResponse{}, nil
+		return &meshes.ApplyRuleResponse{
+			OperationId: arReq.OperationId,
+		}, nil
 
-	case installICMPCommand:
+	case installVPNCommand:
 		go func() {
 			opName1 := "deploying"
 			if arReq.DeleteOp {
 				opName1 = "removing"
 			}
-			if err := nsmClient.executeICMPInstall(ctx, arReq); err != nil {
+			if err := nsmClient.executeVPNInstall(ctx, arReq); err != nil {
 				nsmClient.eventChan <- &meshes.EventsResponse{
-					EventType: meshes.EventType_ERROR,
-					Summary:   fmt.Sprintf("Error while %s the ICMP Application", opName1),
-					Details:   err.Error(),
+					OperationId: arReq.OperationId,
+					EventType:   meshes.EventType_ERROR,
+					Summary:     fmt.Sprintf("Error while %s the VPN App", opName1),
+					Details:     err.Error(),
 				}
 				return
 			}
@@ -353,14 +387,17 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 				opName = "removed"
 			}
 			nsmClient.eventChan <- &meshes.EventsResponse{
-				EventType: meshes.EventType_INFO,
-				Summary:   fmt.Sprintf(" ICMP app %s successfully", opName),
-				Details:   fmt.Sprintf("The ICMP app is now %s.", opName),
+				OperationId: arReq.OperationId,
+				EventType:   meshes.EventType_INFO,
+				Summary:     fmt.Sprintf(" VPN app %s successfully", opName),
+				Details:     fmt.Sprintf("The VPN app is now %s.", opName),
 			}
 			return
 		}()
 
-		return &meshes.ApplyRuleResponse{}, nil
+		return &meshes.ApplyRuleResponse{
+			OperationId: arReq.OperationId,
+		}, nil
 
 	default:
 		yamlFileContents, err = nsmClient.executeTemplate(ctx, arReq.Username, arReq.Namespace, op.templateName)
@@ -378,59 +415,45 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 
 func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool, arReq *meshes.ApplyRuleRequest) error {
 
-	var yamlFileContents string
 	var err error
-	/*args := []string{"-c", webhookcertificatefile}
-	//cmd := exec.Command("/bin/sh", args...)
-	/*out, err := exec.Command("/bin/sh", args...).Output()
+	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/nsm")
+
 	if err != nil {
-		logrus.Errorf("Error while executing the shell script :", err)
+		logrus.Errorf("Chart shows error ", err)
 	}
-	cmd := exec.Command("/bin/sh", args...)
-	var out bytes.Buffer
-	var stderr bytes.Buffer
-	cmd.Stdout = &out
-	cmd.Stderr = &stderr
-	sterr := cmd.Run()
-	if sterr != nil {
-		logrus.Errorf("Error while executing the shell script :", sterr, stderr.String())
 
+	manifests, err := renderManifests(context.TODO(), chart, "", "nsm", arReq.Namespace, "")
+
+	for _, element := range manifests {
+		err = nsmClient.applyConfigChange(ctx, element.Content, arReq.Namespace, arReq.DeleteOp)
+		if err != nil {
+			return err
+		}
 	}
-	//fmt.Println("Result: " + out.String())
-
-	logrus.Infof("Output for shell script : %s ", out.String())*/
-
-	//logrus.Infof("WebhookCert file : %s", cmd.Stdout)
-	yamlFileContents, err = nsmClient.getClusterRoleadminYAML()
-	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
-	yamlFileContents, err = nsmClient.getClusterBindingYaml()
-	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
-	yamlFileContents, err = nsmClient.getClusterRoleViewYaml()
-	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
-	yamlFileContents, err = nsmClient.getCrdNetworkserviceManagerYaml()
-	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
-	yamlFileContents, err = nsmClient.getCrdNetworkserviceYaml()
-	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
-	yamlFileContents, err = nsmClient.getCrdNetworkserviceEndpointYaml()
-	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
-	yamlFileContents, err = nsmClient.getNsmgrYaml()
-	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
-	yamlFileContents, err = nsmClient.getAdmissionWebhookYaml()
-	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
-	yamlFileContents, err = nsmClient.getCrossconnectYaml()
-	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
-	yamlFileContents, err = nsmClient.getVppagentdataplaneYaml()
-	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
-	yamlFileContents, err = nsmClient.getSkydiveYaml()
-	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
-
 	if err != nil {
 		return err
 	}
-	/*if err := nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp); err != nil {
-		return err
-	}*/
 
+	return nil
+}
+func (nsmClient *NSMClient) executeVPNInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
+
+	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/vpn")
+	if err != nil {
+		logrus.Errorf("Chart shows error ", err)
+	}
+
+	manifests, err := renderManifests(context.TODO(), chart, "", "nsm", arReq.Namespace, "")
+
+	for _, element := range manifests {
+		err = nsmClient.applyConfigChange(ctx, element.Content, arReq.Namespace, arReq.DeleteOp)
+		if err != nil {
+			return err
+		}
+	}
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -460,7 +483,6 @@ func (nsmClient *NSMClient) CreateMeshInstance(_ context.Context, k8sReq *meshes
 		k8sConfig = k8sReq.K8SConfig
 		contextName = k8sReq.ContextName
 	}
-	// logrus.Debugf("received k8sConfig: %s", k8sConfig)
 	logrus.Debugf("received contextName: %s", contextName)
 
 	ic, err := newClient(k8sConfig, contextName)
@@ -497,313 +519,21 @@ func (nsmClient *NSMClient) StreamEvents(in *meshes.EventsRequest, stream meshes
 	}
 	return nil
 }
-
-//func (nsmClient *NSMClient) createsecrets(ctx context.Context, namespace string) {
-/* executing script part */
-/*generate csr.conf*/
-/*	csr :=
-		`[req]
-	req_extensions = v3_req
-	distinguished_name = req_distinguished_name
-	[req_distinguished_name]
-	[ v3_req ]
-	basicConstraints = CA:FALSE
-	keyUsage = nonRepudiation, digitalSignature, keyEncipherment
-	extendedKeyUsage = serverAuth
-	subjectAltName = @alt_names
-	[alt_names]
-	DNS.1 = nsm-admission-webhook-svc
-	DNS.2 = nsm-admission-webhook-svc.` + namespace + `
-	DNS.3 = nsm-admission-webhook-svc.` + namespace + `.svc`
-
-	f, err := os.Create("/tmp/csr.conf")
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	_, err = f.WriteString(csr)
-	if err != nil {
-		fmt.Println(err)
-		f.Close()
-		return
-	}
-	/*execute openssh server command to generate server.pem in tmp directory */
-/*os.Create("/tmp/server-key.pem")
-os.Create("/tmp/server.csr")
-opensslcommand := `openssl genrsa -out /tmp/server-key.pem 2048 ; openssl req -new -key /tmp/server-key.pem -subj "//CN=nsm-admission-webhook-svc.` + namespace + `.svc/" -out /tmp/server.csr -config /tmp/csr.conf`
-
-cmd := exec.Command("/bin/bash", "-c", opensslcommand)
-var out bytes.Buffer
-var stderr bytes.Buffer
-cmd.Stdout = &out
-cmd.Stderr = &stderr
-sterr := cmd.Run()
-if sterr != nil {
-	logrus.Errorf("Error while creating secret key :", sterr, stderr.String())
-
-}
-logrus.Infof("Result: " + out.String())
-
-/* storing secret key in a variable*/
-/*data, err := ioutil.ReadFile("/tmp/server.csr")
-if err != nil {
-	fmt.Println("File reading error", err)
-	return
-}
-fmt.Println("Contents of file:", string(data))*/
-/*key := exec.Command("/bin/bash", "-c", "base64 < /tmp/server.csr | tr -d '\n'")
-	key.Stdout = &out
-	key.Stderr = &stderr
-	sterr = key.Run()
-	if sterr != nil {
-		logrus.Errorf("Error while reading base64 of secret key :", sterr, stderr.String())
-
-	}
-	logrus.Infof("base64 : " + out.String())
-
-	yamlFileContents := `apiVersion: certificates.k8s.io/v1beta1
-   kind: CertificateSigningRequest
-   metadata:
-     name:nsm-admission-webhook-svc.nsm-system
-   spec:
-     groups:
-       - system:authenticated
-         request: ` + out.String() + `usages:
-- digital signature
-- key encipherment
-- server auth`
-	file, er := os.Create("/tmp/NetworkServiceMesh/CSR.yaml")
-	if er != nil {
-		fmt.Println(er)
-		return
-	}
-	_, err = file.WriteString(yamlFileContents)
-	if err != nil {
-		fmt.Println(err)
-		f.Close()
-		return
-	}
-	yamlcontent, _ := nsmClient.getComponentYAML("/tmp/NetworkServiceMesh/CSR.yaml")
-	nsmClient.applyConfigChange(ctx, yamlcontent, namespace, false)*/
-/*created the certificate signing request */
-/* approving the certificate and creating secret using kubectl */
-
-//}
-// DeployAdmissionWebhook - Setup Admission Webhook
-func (nsmClient *NSMClient) DeployAdmissionWebhook(namespace string) (*arv1beta1.MutatingWebhookConfiguration, *v1.Service) {
-	name := "nsm-admission-webhook"
-	_, caCert := CreateAdmissionWebhookSecret(nsmClient, name, namespace)
-	awc := CreateMutatingWebhookConfiguration(nsmClient, caCert, name, namespace)
-	//	awDeployment := CreateAdmissionWebhookDeployment(nsmClient, name, image, namespace)
-	awService := CreateAdmissionWebhookService(nsmClient, name, namespace)
-	return awc, awService
-}
-func CreateAdmissionWebhookSecret(nsmClient *NSMClient, name, namespace string) (*v1.Secret, []byte) {
-
-	caCertSpec := &cert.Config{
-		CommonName: "admission-controller-ca",
-		Usages:     []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-	}
-	caCert, caKey, err := pkiutil.NewCertificateAuthority(caCertSpec)
-	if err != nil {
-		logrus.Infof("Not able to create the admission webhook secret 1")
-	}
-
-	certSpec := &cert.Config{
-		CommonName: name + "-svc",
-		AltNames: cert.AltNames{
-			DNSNames: []string{
-				name + "-svc." + namespace,
-				name + "-svc." + namespace + ".svc",
-			},
-		},
-		Usages: []x509.ExtKeyUsage{x509.ExtKeyUsageAny},
-	}
-	cer, key, err := pkiutil.NewCertAndKey(caCert, caKey, certSpec)
-	if err != nil {
-		logrus.Infof("Not able to create the ca cert and key  ")
-	}
-
-	block := &pem.Block{
-		Type:  "RSA PRIVATE KEY",
-		Bytes: x509.MarshalPKCS1PrivateKey(key),
-	}
-	keyPem := pem.EncodeToMemory(block)
-
-	block = &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: cer.Raw,
-	}
-	certPem := pem.EncodeToMemory(block)
-
-	secret := &v1.Secret{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "Secret",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name:      name + "-certs",
-			Namespace: namespace,
-		},
-		Type: v1.SecretTypeOpaque,
-		Data: map[string][]byte{
-			"key.pem":  keyPem,
-			"cert.pem": certPem,
-		},
-	}
-	awSecret, err := nsmClient.CreateSecret(secret, namespace)
-	if err != nil {
-		logrus.Infof("Not able to create the admission webhook secret ")
-	}
-
-	block = &pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: caCert.Raw,
-	}
-	caCertPem := pem.EncodeToMemory(block)
-
-	return awSecret, caCertPem
-}
-func CreateMutatingWebhookConfiguration(nsmClient *NSMClient, certPem []byte, name, namespace string) *arv1beta1.MutatingWebhookConfiguration {
-	servicePath := "/mutate"
-
-	mutatingWebhookConf := &arv1beta1.MutatingWebhookConfiguration{
-
-		TypeMeta: metav1.TypeMeta{
-			Kind: "MutatingWebhookConfiguration",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name + "-cfg",
-			Labels: map[string]string{
-				"app": "nsm-admission-webhook",
-			},
-		},
-		Webhooks: []arv1beta1.Webhook{
-			{
-				Name: "admission-webhook.networkservicemesh.io",
-				ClientConfig: arv1beta1.WebhookClientConfig{
-					Service: &arv1beta1.ServiceReference{
-						Namespace: namespace,
-						Name:      name + "-svc",
-						Path:      &servicePath,
-					},
-					CABundle: certPem,
-				},
-				Rules: []arv1beta1.RuleWithOperations{
-					{
-						Operations: []arv1beta1.OperationType{
-							arv1beta1.Create,
-						},
-						Rule: arv1beta1.Rule{
-							APIGroups:   []string{"apps", "extensions", ""},
-							APIVersions: []string{"v1", "v1beta1"},
-							Resources:   []string{"deployments", "services", "pods"},
-						},
-					},
-				},
-			},
-		},
-	}
-	awc, err := nsmClient.CreateMutatingWebhookConfiguration(mutatingWebhookConf)
-	if err != nil {
-		logrus.Infof("Not able to create the admission webhook mutating configuration  ")
-	}
-
-	return awc
-}
-func (nsmClient *NSMClient) CreateMutatingWebhookConfiguration(mutatingWebhookConf *arv1beta1.MutatingWebhookConfiguration) (*arv1beta1.MutatingWebhookConfiguration, error) {
-	awc, err := nsmClient.k8sClientset.AdmissionregistrationV1beta1().MutatingWebhookConfigurations().Create(mutatingWebhookConf)
-	if err != nil {
-		logrus.Errorf("Error creating MutatingWebhookConfiguration: %v %v", awc, err)
-	}
-	logrus.Infof("MutatingWebhookConfiguration is created: %v", awc)
-	return awc, err
-}
-func CreateAdmissionWebhookService(nsmClient *NSMClient, name, namespace string) *v1.Service {
-	service := &v1.Service{
-		TypeMeta: metav1.TypeMeta{
-			Kind: "Service",
-		},
-		ObjectMeta: metav1.ObjectMeta{
-			Name: name + "-svc",
-			Labels: map[string]string{
-				"app": "nsm-admission-webhook",
-			},
-		},
-		Spec: v1.ServiceSpec{
-			Ports: []v1.ServicePort{
-				{
-					Port:       443,
-					TargetPort: intstr.FromInt(443),
-				},
-			},
-			Selector: map[string]string{
-				"app": "nsm-admission-webhook",
-			},
-		},
-	}
-	awService, err := nsmClient.CreateService(service, namespace)
-	if err != nil {
-		logrus.Infof("Not able to create the admission webhook service ")
-	}
-
-	return awService
-}
-func (nsmClient *NSMClient) CreateService(service *v1.Service, namespace string) (*v1.Service, error) {
-	_ = nsmClient.k8sClientset.CoreV1().Services(namespace).Delete(service.Name, &metav1.DeleteOptions{})
-	s, err := nsmClient.k8sClientset.CoreV1().Services(namespace).Create(service)
-	if err != nil {
-		logrus.Errorf("Error creating service: %v %v", s, err)
-	}
-
-	return s, err
-}
-
-func (nsmClient *NSMClient) CreateSecret(secret *v1.Secret, namespace string) (*v1.Secret, error) {
-	s, err := nsmClient.k8sClientset.CoreV1().Secrets(namespace).Create(secret)
-	if err != nil {
-		logrus.Errorf("Error creating secret: %v %v", s, err)
-	}
-
-	return s, err
-}
-
-func (nsmClient *NSMClient) executeICMPInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
-
-	yamlFileContents, err := nsmClient.getICMPAppYaml()
-	if err != nil {
-		return err
-	}
-	if err := nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp); err != nil {
-		return err
-	}
-	return nil
-}
-
 func (nsmClient *NSMClient) SupportedOperations(context.Context, *meshes.SupportedOperationsRequest) (*meshes.SupportedOperationsResponse, error) {
-	result := map[string]string{}
-	for key, op := range supportedOps {
-		result[key] = op.name
+
+	supportedOpsCount := len(supportedOps)
+	result := make([]*meshes.SupportedOperation, supportedOpsCount)
+	i := 0
+	for k, sp := range supportedOps {
+		result[i] = &meshes.SupportedOperation{
+			Key:      k,
+			Value:    sp.name,
+			Category: sp.opType,
+		}
+		i++
 	}
+
 	return &meshes.SupportedOperationsResponse{
 		Ops: result,
 	}, nil
-}
-
-func RemoveDir(directory string) error {
-	d, err := os.Open(directory)
-	if err != nil {
-		return err
-	}
-	defer d.Close()
-	names, err := d.Readdirnames(-1)
-	if err != nil {
-		return err
-	}
-	for _, name := range names {
-		err = os.RemoveAll(filepath.Join(directory, name))
-		if err != nil {
-			return err
-		}
-	}
-	return nil
 }
