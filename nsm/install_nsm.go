@@ -19,7 +19,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	git "gopkg.in/src-d/go-git.v4"

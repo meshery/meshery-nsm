@@ -30,6 +30,7 @@ var supportedOps = map[string]supportedOperation{
 		opType: meshes.OpCategory_INSTALL,
 	},
 
+
 	customOpCommand: {
 		name:   "Custom YAML",
 		opType: meshes.OpCategory_CUSTOM,

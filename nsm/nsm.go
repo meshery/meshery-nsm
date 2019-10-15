@@ -421,7 +421,6 @@ func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool
 	if err != nil {
 		logrus.Errorf("Chart shows error ", err)
 	}
-
 	manifests, err := renderManifests(context.TODO(), chart, "", "nsm", arReq.Namespace, "")
 
 	for _, element := range manifests {
@@ -436,9 +435,11 @@ func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool
 
 	return nil
 }
+
 func (nsmClient *NSMClient) executeVPNInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
 
 	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/vpn")
+
 	if err != nil {
 		logrus.Errorf("Chart shows error ", err)
 	}
@@ -519,6 +520,9 @@ func (nsmClient *NSMClient) StreamEvents(in *meshes.EventsRequest, stream meshes
 	}
 	return nil
 }
+
+=======
+// SupportedOperations - returns a list of supported operations on the mesh
 func (nsmClient *NSMClient) SupportedOperations(context.Context, *meshes.SupportedOperationsRequest) (*meshes.SupportedOperationsResponse, error) {
 
 	supportedOpsCount := len(supportedOps)
