@@ -367,17 +367,17 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 			OperationId: arReq.OperationId,
 		}, nil
 
-	case installICMPCommand:
+	case installVPNCommand:
 		go func() {
 			opName1 := "deploying"
 			if arReq.DeleteOp {
 				opName1 = "removing"
 			}
-			if err := nsmClient.executeICMPInstall(ctx, arReq); err != nil {
+			if err := nsmClient.executeVPNInstall(ctx, arReq); err != nil {
 				nsmClient.eventChan <- &meshes.EventsResponse{
 					OperationId: arReq.OperationId,
 					EventType:   meshes.EventType_ERROR,
-					Summary:     fmt.Sprintf("Error while %s the ICMP App", opName1),
+					Summary:     fmt.Sprintf("Error while %s the VPN App", opName1),
 					Details:     err.Error(),
 				}
 				return
@@ -389,8 +389,8 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 			nsmClient.eventChan <- &meshes.EventsResponse{
 				OperationId: arReq.OperationId,
 				EventType:   meshes.EventType_INFO,
-				Summary:     fmt.Sprintf(" ICMP app %s successfully", opName),
-				Details:     fmt.Sprintf("The ICMP app is now %s.", opName),
+				Summary:     fmt.Sprintf(" VPN app %s successfully", opName),
+				Details:     fmt.Sprintf("The VPN app is now %s.", opName),
 			}
 			return
 		}()
@@ -417,9 +417,11 @@ func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool
 
 	var err error
 	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/nsm")
+
 	if err != nil {
-		logrus.Infof("Chart shows error ", err)
+		logrus.Errorf("Chart shows error ", err)
 	}
+
 	manifests, err := renderManifests(context.TODO(), chart, "", "nsm", arReq.Namespace, "")
 
 	for _, element := range manifests {
@@ -434,9 +436,9 @@ func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool
 
 	return nil
 }
-func (nsmClient *NSMClient) executeICMPInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
+func (nsmClient *NSMClient) executeVPNInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
 
-	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/vpp-icmp-responder")
+	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/vpn")
 	if err != nil {
 		logrus.Errorf("Chart shows error ", err)
 	}

@@ -16,9 +16,10 @@ package nsm
 
 import (
 	"context"
-	"log"
+	"io/ioutil"
 	"os"
 	"path"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	git "gopkg.in/src-d/go-git.v4"
@@ -60,7 +61,8 @@ func (nsmClient *NSMClient) downloadNSM() {
 		})
 
 		if err != nil {
-			log.Fatal(err)
+			logrus.Errorf("Error Cloning the repo ", err)
+			return
 		}
 
 		logrus.Infof("Clone of NSM repo completed in ", destinationFolder)
@@ -69,7 +71,9 @@ func (nsmClient *NSMClient) downloadNSM() {
 }
 
 func renderManifests(ctx context.Context, c *chart.Chart, values, releaseName, namespace, kubeVersion string) ([]manifest.Manifest, error) {
-
+	data, err := ioutil.ReadFile(path.Join("nsm", "config_templates/values.yaml"))
+	logrus.Infof("the loaded file ", string(data))
+	c.Values = &chart.Config{Raw: string(data)}
 	renderOpts := renderutil.Options{
 		ReleaseOptions: chartutil.ReleaseOptions{
 			Name:      releaseName,
@@ -85,7 +89,6 @@ func renderManifests(ctx context.Context, c *chart.Chart, values, releaseName, n
 	if err != nil {
 		return nil, err
 	}
-
 	manifests := manifest.SplitManifests(renderedTemplates)
 	return tiller.SortByKind(manifests), nil
 }
