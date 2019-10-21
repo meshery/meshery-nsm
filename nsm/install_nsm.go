@@ -61,7 +61,7 @@ func (nsmClient *NSMClient) downloadNSM() {
 		})
 
 		if err != nil {
-			logrus.Errorf("Error Cloning the repo ", err)
+			logrus.Errorf("Error Cloning the repo", err)
 			return
 		}
 
