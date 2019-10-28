@@ -1,4 +1,4 @@
-<img align="right" src="https://layer5.io/assets/images/cube-sh-small.png" />
+<a href="https://layer5.io/meshery"><img align="right" src="https://layer5.io/assets/images/cube-sh-small.png" /></a>
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/layer5/meshery-nsm.svg)](https://hub.docker.com/r/layer5/meshery-nsm)
 [![Go Report Card](https://goreportcard.com/badge/github.com/layer5io/meshery-nsm)](https://goreportcard.com/report/github.com/layer5io/meshery-nsm)
