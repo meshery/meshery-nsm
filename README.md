@@ -1,12 +1,12 @@
-<img align="right" src="https://layer5.io/assets/images/cube-sh-small.png" />
+<a href="https://layer5.io/meshery"><img align="right" src="https://layer5.io/assets/images/cube-sh-small.png" /></a>
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/layer5/meshery-nsm.svg)](https://hub.docker.com/r/layer5/meshery-nsm)
 [![Go Report Card](https://goreportcard.com/badge/github.com/layer5io/meshery-nsm)](https://goreportcard.com/report/github.com/layer5io/meshery-nsm)
 [![Build Status](https://github.com/layer5io/meshery-nsm/workflows/Meshery%20NSM/badge.svg)](https://github.com/layer5io/meshery-nsm/actions)
-![GitHub](https://img.shields.io/github/license/layer5io/meshery-nsm.svg)
-![GitHub issues by-label](https://img.shields.io/github/issues/layer5io/meshery-nsm/help%20wanted.svg)
-![Website](https://img.shields.io/website/https/layer5.io/meshery.svg)
-![Twitter Follow](https://img.shields.io/twitter/follow/layer5.svg?label=Follow&style=social)
+[![GitHub](https://img.shields.io/github/license/layer5io/meshery-nsm.svg)](LICENSE)
+[![GitHub issues by-label](https://img.shields.io/github/issues/layer5io/meshery-nsm/help%20wanted.svg)](https://github.com/layer5io/meshery-nsm/issues?q=is%3Aopen+is%3Aissue+label%3A%22help+wanted%22)
+[![Website](https://img.shields.io/website/https/layer5.io/meshery.svg)](https://layer5.io/meshery/)
+[![Twitter Follow](https://img.shields.io/twitter/follow/layer5.svg?label=Follow&style=social)](https://twitter.com/intent/follow?screen_name=mesheryio)
 [![Slack](https://img.shields.io/badge/slack-380-lightgrey)](http://slack.layer5.io)
 
 # meshery-nsm
