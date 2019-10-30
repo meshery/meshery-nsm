@@ -16,7 +16,7 @@ package nsm
 
 import (
 	"context"
-	"log"
+	"io/ioutil"
 	"os"
 	"path"
 	"github.com/pkg/errors"
@@ -38,7 +38,18 @@ var (
 	destinationFolder = path.Join(os.TempDir(), "NetworkServiceMesh")
 )
 
-func (nsmClient *NSMClient) downloadNSM() {
+func (nsmClient *Client) getComponentYAML(fileName string) (string, error) {
+
+	fileContents, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		err = errors.Wrap(err, "unable to read file")
+		logrus.Error(err)
+		return "", err
+	}
+	return string(fileContents), nil
+}
+
+func (nsmClient *Client) downloadNSM() {
 
 	_, err := os.Stat(destinationFolder)
 
@@ -60,7 +71,8 @@ func (nsmClient *NSMClient) downloadNSM() {
 		})
 
 		if err != nil {
-			log.Fatal(err)
+			logrus.Errorf("Error Cloning the repo", err)
+			return
 		}
 
 		logrus.Infof("Clone of NSM repo completed in ", destinationFolder)
@@ -69,7 +81,9 @@ func (nsmClient *NSMClient) downloadNSM() {
 }
 
 func renderManifests(ctx context.Context, c *chart.Chart, values, releaseName, namespace, kubeVersion string) ([]manifest.Manifest, error) {
-
+	data, err := ioutil.ReadFile(path.Join("nsm", "config_templates/values.yaml"))
+	logrus.Infof("the loaded file ", string(data))
+	c.Values = &chart.Config{Raw: string(data)}
 	renderOpts := renderutil.Options{
 		ReleaseOptions: chartutil.ReleaseOptions{
 			Name:      releaseName,
@@ -85,7 +99,6 @@ func renderManifests(ctx context.Context, c *chart.Chart, values, releaseName, n
 	if err != nil {
 		return nil, err
 	}
-
 	manifests := manifest.SplitManifests(renderedTemplates)
 	return tiller.SortByKind(manifests), nil
 }
