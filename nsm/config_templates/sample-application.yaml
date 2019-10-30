@@ -1,0 +1,116 @@
+apiVersion: apps/v1
+kind: Deployment
+spec:
+ selector:
+   matchLabels:
+     networkservicemesh.io/app: "nsm-app"
+     networkservicemesh.io/impl: "appb"
+     app: appb
+ replicas: 1
+ template:
+   metadata:
+     labels:
+       networkservicemesh.io/app: "nsm-app"
+       networkservicemesh.io/impl: "appb"
+       app: NSE
+   spec:
+     containers:
+       - name: sidecar-endpoint
+         image: networkservicemesh/proxy-sidecar-nse:master
+         imagePullPolicy: IfNotPresent
+         env:
+           - name: ADVERTISE_NSE_NAME
+             value: "nsm-app"
+           - name: ADVERTISE_NSE_LABELS
+             value: "app=appb"
+           - name: TRACER_ENABLED
+             value: "true"
+           - name: IP_ADDRESS
+             value: "10.60.1.0/24"
+         resources:
+           limits:
+             networkservicemesh.io/socket: 1
+       - name: app
+         image: girishrranganathan/appb
+         imagePullPolicy: IfNotPresent
+         ports:
+           - containerPort: 80
+metadata:
+ name: NSE
+ labels:
+   app: NSE
+---
+apiVersion: apps/v1
+kind: Deployment
+spec:
+ replicas: 1
+ selector:
+   matchLabels:
+     networkservicemesh.io/app: "NSC"
+     app: NSC
+ template:
+   metadata:
+     labels:
+       networkservicemesh.io/app: "NSC"
+       app: NSC
+   spec:
+     containers:
+       - name: app
+         image: girishrranganathan/appa
+         ports:
+           - containerPort: 80
+         env:
+          - name: URL
+            value: http://app/
+metadata:
+ name: NSC
+ labels:
+   app: NSC
+ annotations:
+   ns.networkservicemesh.io: nsm-app?app=NSC
+---
+apiVersion: networkservicemesh.io/v1alpha1
+kind: NetworkService
+metadata:
+  name: nsm-app
+spec:
+  payload: HTTP
+  matches:
+    - match:
+      sourceSelector:
+        app: NSC
+      route:
+        - destination:
+          destinationSelector:
+            app: NSE
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nsc
+spec:
+  ports:
+  - name: "http"
+    port: 80
+    targetPort: 80
+  selector:
+    app: NSC
+  type: NodePort
+status:
+  loadBalancer: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nse
+spec:
+  ports:
+  - name: "http"
+    port: 80
+    targetPort: 80
+  selector:
+    app: NSE
+  type: LoadBalancer
+status:
+  loadBalancer: {}
+---

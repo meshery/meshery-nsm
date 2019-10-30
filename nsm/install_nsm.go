@@ -39,6 +39,17 @@ var (
 	destinationFolder = path.Join(os.TempDir(), "NetworkServiceMesh")
 )
 
+func (nsmClient *NSMClient) getComponentYAML(fileName string) (string, error) {
+
+	fileContents, err := ioutil.ReadFile(fileName)
+	if err != nil {
+		err = errors.Wrap(err, "unable to read file")
+		logrus.Error(err)
+		return "", err
+	}
+	return string(fileContents), nil
+}
+
 func (nsmClient *NSMClient) downloadNSM() {
 
 	_, err := os.Stat(destinationFolder)

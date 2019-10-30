@@ -15,9 +15,9 @@ type supportedOperation struct {
 }
 
 const (
-	customOpCommand   = "custom"
-	installNSMCommand = "nsm_install"
-	installVPNCommand = "vpn_install"
+	customOpCommand         = "custom"
+	installNSMCommand       = "nsm_install"
+	installsampleappCommand = "welcome_install"
 )
 
 var supportedOps = map[string]supportedOperation{
@@ -25,8 +25,8 @@ var supportedOps = map[string]supportedOperation{
 		name:   "Network Service Mesh",
 		opType: meshes.OpCategory_INSTALL,
 	},
-	installVPNCommand: {
-		name:   "VPN Application",
+	installsampleappCommand: {
+		name:   "Sample Application",
 		opType: meshes.OpCategory_INSTALL,
 	},
 

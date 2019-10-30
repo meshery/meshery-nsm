@@ -367,17 +367,17 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 			OperationId: arReq.OperationId,
 		}, nil
 
-	case installVPNCommand:
+	case installsampleappCommand:
 		go func() {
 			opName1 := "deploying"
 			if arReq.DeleteOp {
 				opName1 = "removing"
 			}
-			if err := nsmClient.executeVPNInstall(ctx, arReq); err != nil {
+			if err := nsmClient.executesampleappInstall(ctx, arReq); err != nil {
 				nsmClient.eventChan <- &meshes.EventsResponse{
 					OperationId: arReq.OperationId,
 					EventType:   meshes.EventType_ERROR,
-					Summary:     fmt.Sprintf("Error while %s the VPN App", opName1),
+					Summary:     fmt.Sprintf("Error while %s the Sample App", opName1),
 					Details:     err.Error(),
 				}
 				return
@@ -389,8 +389,8 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 			nsmClient.eventChan <- &meshes.EventsResponse{
 				OperationId: arReq.OperationId,
 				EventType:   meshes.EventType_INFO,
-				Summary:     fmt.Sprintf(" VPN app %s successfully", opName),
-				Details:     fmt.Sprintf("The VPN app is now %s.", opName),
+				Summary:     fmt.Sprintf(" Sample app %s successfully", opName),
+				Details:     fmt.Sprintf("Sample app is now %s.", opName),
 			}
 			return
 		}()
@@ -436,21 +436,11 @@ func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool
 
 	return nil
 }
-func (nsmClient *NSMClient) executeVPNInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
+func (nsmClient *NSMClient) executesampleappInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
 
-	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/vpn")
-	if err != nil {
-		logrus.Errorf("Chart shows error ", err)
-	}
+	yamlFileContents, err := nsmClient.getComponentYAML(path.Join("nsm", "config_templates/sample-application.yaml"))
+	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
 
-	manifests, err := renderManifests(context.TODO(), chart, "", "nsm", arReq.Namespace, "")
-
-	for _, element := range manifests {
-		err = nsmClient.applyConfigChange(ctx, element.Content, arReq.Namespace, arReq.DeleteOp)
-		if err != nil {
-			return err
-		}
-	}
 	if err != nil {
 		return err
 	}
