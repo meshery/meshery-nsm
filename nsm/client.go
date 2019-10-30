@@ -11,6 +11,7 @@ import (
 	_ "k8s.io/client-go/plugin/pkg/client/auth"
 	"k8s.io/client-go/rest"
 )
+
 // Client represents an NSM client in Meshery
 type Client struct {
 	config           *rest.Config
@@ -18,6 +19,7 @@ type Client struct {
 	k8sDynamicClient dynamic.Interface
 	eventChan        chan *meshes.EventsResponse
 }
+
 
 func configClient(kubeconfig []byte, contextName string) (*rest.Config, error) {
 	if len(kubeconfig) > 0 {
