@@ -12,7 +12,7 @@ spec:
      labels:
        networkservicemesh.io/app: "nsm-app"
        networkservicemesh.io/impl: "appb"
-       app: NSE
+       app: appb
    spec:
      containers:
        - name: sidecar-endpoint
@@ -30,15 +30,15 @@ spec:
          resources:
            limits:
              networkservicemesh.io/socket: 1
-       - name: app
+       - name: appb
          image: girishrranganathan/appb
          imagePullPolicy: IfNotPresent
          ports:
            - containerPort: 80
 metadata:
- name: NSE
+ name: appb
  labels:
-   app: NSE
+   app: appb
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -46,28 +46,28 @@ spec:
  replicas: 1
  selector:
    matchLabels:
-     networkservicemesh.io/app: "NSC"
-     app: NSC
+     networkservicemesh.io/app: "appa"
+     app: appa
  template:
    metadata:
      labels:
-       networkservicemesh.io/app: "NSC"
-       app: NSC
+       networkservicemesh.io/app: "appa"
+       app: appa
    spec:
      containers:
-       - name: app
+       - name: appa
          image: girishrranganathan/appa
          ports:
            - containerPort: 80
          env:
           - name: URL
-            value: http://app/
+            value: http://appb/
 metadata:
- name: NSC
+ name: appa
  labels:
-   app: NSC
+   app: appa
  annotations:
-   ns.networkservicemesh.io: nsm-app?app=NSC
+   ns.networkservicemesh.io: nsm-app?app=appa
 ---
 apiVersion: networkservicemesh.io/v1alpha1
 kind: NetworkService
@@ -78,38 +78,38 @@ spec:
   matches:
     - match:
       sourceSelector:
-        app: NSC
+        app: appa
       route:
         - destination:
           destinationSelector:
-            app: NSE
+            app: appb
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: nsc
+  name: appa
 spec:
   ports:
   - name: "http"
     port: 80
     targetPort: 80
   selector:
-    app: NSC
-  type: NodePort
+    app: appa
+  type: LoadBalancer
 status:
   loadBalancer: {}
 ---
 apiVersion: v1
 kind: Service
 metadata:
-  name: nse
+  name: appb
 spec:
   ports:
   - name: "http"
     port: 80
     targetPort: 80
   selector:
-    app: NSE
+    app: appb
   type: LoadBalancer
 status:
   loadBalancer: {}
