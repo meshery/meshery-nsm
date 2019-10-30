@@ -19,7 +19,6 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	git "gopkg.in/src-d/go-git.v4"
@@ -39,7 +38,7 @@ var (
 	destinationFolder = path.Join(os.TempDir(), "NetworkServiceMesh")
 )
 
-func (nsmClient *NSMClient) getComponentYAML(fileName string) (string, error) {
+func (nsmClient *Client) getComponentYAML(fileName string) (string, error) {
 
 	fileContents, err := ioutil.ReadFile(fileName)
 	if err != nil {
@@ -50,7 +49,7 @@ func (nsmClient *NSMClient) getComponentYAML(fileName string) (string, error) {
 	return string(fileContents), nil
 }
 
-func (nsmClient *NSMClient) downloadNSM() {
+func (nsmClient *Client) downloadNSM() {
 
 	_, err := os.Stat(destinationFolder)
 
