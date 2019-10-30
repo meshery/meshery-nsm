@@ -12,11 +12,6 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-<<<<<<< HEAD
-
-
-=======
->>>>>>> 59c3c8684c8ea551b8ac664905b5e76c8c40d4c4
 // Client represents an Istio client in Meshery
 type Client struct {
 	config           *rest.Config
