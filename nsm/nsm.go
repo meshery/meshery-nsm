@@ -516,7 +516,6 @@ func (nsmClient *Client) StreamEvents(in *meshes.EventsRequest, stream meshes.Me
 
 // SupportedOperations - returns a list of supported operations on the mesh
 func (nsmClient *Client) SupportedOperations(context.Context, *meshes.SupportedOperationsRequest) (*meshes.SupportedOperationsResponse, error) {
-
 	supportedOpsCount := len(supportedOps)
 	result := make([]*meshes.SupportedOperation, supportedOpsCount)
 	i := 0
