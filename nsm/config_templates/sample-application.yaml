@@ -1,3 +1,54 @@
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: appa-cr-role
+rules:
+- apiGroups: [""]
+  resources: ["namespaces"]
+  verbs: ["get", "list"]
+---
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: appa-role
+rules:
+- apiGroups: [""]
+  resources: ["services", "pods"]
+  verbs: ["get", "list"]
+- apiGroups: [""]
+  resources: ["pods/exec"]
+  verbs: ["create"]
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: appa-sa
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: appa-cluster-role-binding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: appa-cr-role
+subjects:
+- kind: ServiceAccount
+  name: appa-sa
+  namespace: {{.namespace}}
+---
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1beta1
+metadata:
+  name: appa-sa-binding
+subjects:
+- kind: ServiceAccount
+  name: appa-sa
+roleRef:
+  kind: Role
+  name: appa-role
+  apiGroup: rbac.authorization.k8s.io
+---
 apiVersion: apps/v1
 kind: Deployment
 spec:
@@ -31,7 +82,7 @@ spec:
            limits:
              networkservicemesh.io/socket: 1
        - name: appb
-         image: girishrranganathan/appb
+         image: layer5/meshery-nsm-sample-appb
          imagePullPolicy: IfNotPresent
          ports:
            - containerPort: 80
@@ -54,14 +105,17 @@ spec:
        networkservicemesh.io/app: "appa"
        app: appa
    spec:
+     serviceAccountName: appa-sa
      containers:
        - name: appa
-         image: girishrranganathan/appa
+         image: layer5/meshery-nsm-sample-appa
          ports:
            - containerPort: 80
          env:
           - name: URL
             value: http://appb/
+          - name: IP_ADDRESS
+            value: "10.60.1.0/24"
 metadata:
  name: appa
  labels:
