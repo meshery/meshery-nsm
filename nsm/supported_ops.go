@@ -15,20 +15,35 @@ type supportedOperation struct {
 }
 
 const (
-	customOpCommand   = "custom"
-	installNSMCommand = "nsm_install"
-	//installVPNCommand  = "vpn_install"
-	installICMPCommand = "icmp_install"
+	customOpCommand       = "custom"
+	installNSMCommand     = "nsm_install"
+	installICMPCommand    = "icmp_sample_install"
+	installVPNCommand     = "vpn_sample_install"
+	installVPNICMPCommand = "vpn_icmp_sample_install"
+	installHelloNSMApp    = "hello_nsm_app"
 )
 
 var supportedOps = map[string]supportedOperation{
 	installNSMCommand: {
-		name:   "Install Network Service Mesh",
+		name:   "Network Service Mesh",
 		opType: meshes.OpCategory_INSTALL,
 	},
 	installICMPCommand: {
-		name:   "Install ICMP Application",
-		opType: meshes.OpCategory_INSTALL,
+		name:   "ICMP Application",
+		opType: meshes.OpCategory_SAMPLE_APPLICATION,
+	},
+	installVPNCommand: {
+		name:   "VPN Application",
+		opType: meshes.OpCategory_SAMPLE_APPLICATION,
+	},
+	installVPNICMPCommand: {
+		name:   "VPN ICMP Application",
+		opType: meshes.OpCategory_SAMPLE_APPLICATION,
+	},
+	installHelloNSMApp: {
+		name:         "Hello NSM Application",
+		opType:       meshes.OpCategory_SAMPLE_APPLICATION,
+		templateName: "hello-nsm-sample-application.yaml",
 	},
 	/*installVPNCommand: {
 		name:   "Install VPN Application",

@@ -16,9 +16,10 @@ package nsm
 
 import (
 	"context"
-	"io/ioutil"
 	"os"
 	"path"
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	git "gopkg.in/src-d/go-git.v4"
@@ -38,27 +39,15 @@ var (
 	destinationFolder = path.Join(os.TempDir(), "NetworkServiceMesh")
 )
 
-func (nsmClient *Client) getComponentYAML(fileName string) (string, error) {
-
-	fileContents, err := ioutil.ReadFile(fileName)
-	if err != nil {
-		err = errors.Wrap(err, "unable to read file")
-		logrus.Error(err)
-		return "", err
-	}
-	return string(fileContents), nil
-}
-
-func (nsmClient *Client) downloadNSM() {
-
+// Git clones the networkservicemesh repo
+func (nsmClient *Client) downloadNSM() error {
 	_, err := os.Stat(destinationFolder)
-
 	if os.IsNotExist(err) {
 		err := os.MkdirAll(destinationFolder, os.ModePerm)
 		if err != nil {
 			err = errors.Wrapf(err, "Unable to create a folder  %s", destinationFolder)
 			logrus.Error(err)
-
+			return err
 		}
 
 		// CLean up temporary directory when done.
@@ -72,18 +61,18 @@ func (nsmClient *Client) downloadNSM() {
 
 		if err != nil {
 			logrus.Errorf("Error Cloning the repo", err)
-			return
+			return err
 		}
 
 		logrus.Infof("Clone of NSM repo completed in ", destinationFolder)
 	}
-
+	return err
 }
 
-func renderManifests(ctx context.Context, c *chart.Chart, values, releaseName, namespace, kubeVersion string) ([]manifest.Manifest, error) {
-	data, err := ioutil.ReadFile(path.Join("nsm", "config_templates/values.yaml"))
-	logrus.Infof("the loaded file ", string(data))
-	c.Values = &chart.Config{Raw: string(data)}
+func renderManifests(ctx context.Context, c *chart.Chart, values, releaseName, namespace, kubeVersion, customConfig string) ([]manifest.Manifest, error) {
+	if strings.TrimSpace(customConfig) != "" {
+		c.Values.Raw = customConfig
+	}
 	renderOpts := renderutil.Options{
 		ReleaseOptions: chartutil.ReleaseOptions{
 			Name:      releaseName,
