@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
-
+	"k8s.io/helm/pkg/chartutil"
 	"github.com/ghodss/yaml"
 	"github.com/layer5io/meshery-nsm/meshes"
 	"github.com/pkg/errors"
@@ -39,7 +39,6 @@ func (nsmClient *Client) createNamespace(ctx context.Context, namespace string) 
 
 	return nil
 }
-
 func (nsmClient *Client) applyConfigChange(ctx context.Context, yamlFileContents, namespace string, delete, isCustomOp bool) error {
 	yamls, err := nsmClient.splitYAML(yamlFileContents)
 	if err != nil {
@@ -493,7 +492,6 @@ func (nsmClient *Client) executeNSMHelmInstall(ctx context.Context, arReq *meshe
 			return err
 		}
 	}
-
 	return nil
 }
 
@@ -566,7 +564,6 @@ func (nsmClient *Client) StreamEvents(in *meshes.EventsRequest, stream meshes.Me
 
 // SupportedOperations - returns a list of supported operations on the mesh
 func (nsmClient *Client) SupportedOperations(context.Context, *meshes.SupportedOperationsRequest) (*meshes.SupportedOperationsResponse, error) {
-
 	supportedOpsCount := len(supportedOps)
 	result := make([]*meshes.SupportedOperation, supportedOpsCount)
 	i := 0

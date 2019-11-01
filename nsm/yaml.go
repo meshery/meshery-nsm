@@ -7,8 +7,6 @@ import (
 )
 
 // YAMLDecoder reads chunks of objects and returns ErrShortBuffer if
-// the data is not sufficient.
-// borrowed from APIMachinery
 type YAMLDecoder struct {
 	r         io.ReadCloser
 	scanner   *bufio.Scanner
@@ -16,10 +14,6 @@ type YAMLDecoder struct {
 }
 
 // NewDocumentDecoder decodes YAML documents from the provided
-// stream in chunks by converting each document (as defined by
-// the YAML spec) into its own chunk. io.ErrShortBuffer will be
-// returned if the entire buffer could not be read to assist
-// the caller in framing the chunk.
 func NewDocumentDecoder(r io.ReadCloser) io.ReadCloser {
 	b := make([]byte, 4096)
 	scanner := bufio.NewScanner(r)
@@ -31,8 +25,8 @@ func NewDocumentDecoder(r io.ReadCloser) io.ReadCloser {
 	}
 }
 
+
 // Read reads the previous slice into the buffer, or attempts to read
-// the next chunk.
 func (d *YAMLDecoder) Read(data []byte) (n int, err error) {
 	left := len(d.remaining)
 	if left == 0 {

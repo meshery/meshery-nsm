@@ -16,6 +16,7 @@ package nsm
 
 import (
 	"context"
+	"io/ioutil"
 	"os"
 	"path"
 	"strings"

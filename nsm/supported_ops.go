@@ -45,11 +45,6 @@ var supportedOps = map[string]supportedOperation{
 		opType:       meshes.OpCategory_SAMPLE_APPLICATION,
 		templateName: "hello-nsm-sample-application.yaml",
 	},
-	/*installVPNCommand: {
-		name:   "Install VPN Application",
-		opType: meshes.OpCategory_INSTALL,
-	},*/
-
 	customOpCommand: {
 		name:   "Custom YAML",
 		opType: meshes.OpCategory_CUSTOM,
