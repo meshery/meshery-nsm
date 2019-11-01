@@ -140,7 +140,7 @@ func (nsmClient *Client) applyRulePayload(ctx context.Context, namespace string,
 	return nil
 }
 
-func (iClient *Client) executeRule(ctx context.Context, data *unstructured.Unstructured, namespace string, delete, isCustomOp bool) error {
+func (nsmClient *Client) executeRule(ctx context.Context, data *unstructured.Unstructured, namespace string, delete, isCustomOp bool) error {
 	// logrus.Debug("========================================================")
 	// logrus.Debugf("Received data: %+#v", data)
 	if namespace != "" {
@@ -178,17 +178,17 @@ func (iClient *Client) executeRule(ctx context.Context, data *unstructured.Unstr
 	logrus.Debugf("Computed Resource: %+#v", res)
 
 	if delete {
-		return iClient.deleteResource(ctx, res, data)
+		return nsmClient.deleteResource(ctx, res, data)
 	}
 	trackRetry := 0
 RETRY:
-	if err := iClient.createResource(ctx, res, data); err != nil {
+	if err := nsmClient.createResource(ctx, res, data); err != nil {
 		if isCustomOp {
-			if err := iClient.deleteResource(ctx, res, data); err != nil {
+			if err := nsmClient.deleteResource(ctx, res, data); err != nil {
 				return err
 			}
 			time.Sleep(time.Second)
-			if err := iClient.createResource(ctx, res, data); err != nil {
+			if err := nsmClient.createResource(ctx, res, data); err != nil {
 				return err
 			}
 			// data1, err := iClient.getResource(ctx, res, data)
@@ -199,7 +199,7 @@ RETRY:
 			// 	return err
 			// }
 		} else {
-			data1, err := iClient.getResource(ctx, res, data)
+			data1, err := nsmClient.getResource(ctx, res, data)
 			if err != nil {
 				return err
 			}
@@ -209,10 +209,10 @@ RETRY:
 			data.SetSelfLink(data1.GetSelfLink())
 			data.SetResourceVersion(data1.GetResourceVersion())
 			// data.DeepCopyInto(data1)
-			if err = iClient.updateResource(ctx, res, data); err != nil {
+			if err = nsmClient.updateResource(ctx, res, data); err != nil {
 				if strings.Contains(err.Error(), "the server does not allow this method on the requested resource") {
 					logrus.Info("attempting to delete resource. . . ")
-					iClient.deleteResource(ctx, res, data)
+					nsmClient.deleteResource(ctx, res, data)
 					trackRetry++
 					if trackRetry <= 3 {
 						goto RETRY
