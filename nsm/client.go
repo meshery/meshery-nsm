@@ -12,7 +12,7 @@ import (
 	"k8s.io/client-go/rest"
 )
 
-// Client represents an Istio client in Meshery
+// Client represents an NSM client in Meshery
 type Client struct {
 	config           *rest.Config
 	k8sClientset     *kubernetes.Clientset
@@ -36,9 +36,9 @@ func configClient(kubeconfig []byte, contextName string) (*rest.Config, error) {
 	return rest.InClusterConfig()
 }
 
-func newClient(kubeconfig []byte, contextName string) (*NSMClient, error) {
+func newClient(kubeconfig []byte, contextName string) (*Client, error) {
 	kubeconfig = monkeyPatchingToSupportInsecureConn(kubeconfig)
-	client := NSMClient{}
+	client := Client{}
 	config, err := configClient(kubeconfig, contextName)
 	if err != nil {
 		return nil, err

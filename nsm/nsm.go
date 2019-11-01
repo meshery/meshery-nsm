@@ -10,9 +10,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
-
 	"k8s.io/helm/pkg/chartutil"
-
 	"github.com/ghodss/yaml"
 	"github.com/layer5io/meshery-nsm/meshes"
 	"github.com/pkg/errors"
@@ -24,11 +22,11 @@ import (
 )
 
 // MeshName just returns the name of the mesh the client is representing
-func (nsmClient *NSMClient) MeshName(context.Context, *meshes.MeshNameRequest) (*meshes.MeshNameResponse, error) {
+func (nsmClient *Client) MeshName(context.Context, *meshes.MeshNameRequest) (*meshes.MeshNameResponse, error) {
 	return &meshes.MeshNameResponse{Name: "Network Service Mesh"}, nil
 }
 
-func (nsmClient *NSMClient) createNamespace(ctx context.Context, namespace string) error {
+func (nsmClient *Client) createNamespace(ctx context.Context, namespace string) error {
 	logrus.Infof("creating namespace: %s", namespace)
 	yamlFileContents, err := nsmClient.executeTemplate(ctx, "", namespace, "namespace.yml")
 	if err != nil {
@@ -40,7 +38,7 @@ func (nsmClient *NSMClient) createNamespace(ctx context.Context, namespace strin
 
 	return nil
 }
-func (nsmClient *NSMClient) labelNamespaceForAutoInjection(ctx context.Context, namespace string) error {
+func (nsmClient *Client) labelNamespaceForAutoInjection(ctx context.Context, namespace string) error {
 	ns := &unstructured.Unstructured{}
 	res := schema.GroupVersionResource{
 		Version:  "v1",
@@ -78,7 +76,7 @@ func (nsmClient *NSMClient) labelNamespaceForAutoInjection(ctx context.Context, 
 	}
 	return nil
 }
-func (nsmClient *NSMClient) applyConfigChange(ctx context.Context, yamlFileContents, namespace string, delete bool) error {
+func (nsmClient *Client) applyConfigChange(ctx context.Context, yamlFileContents, namespace string, delete bool) error {
 	// yamls := strings.Split(yamlFileContents, "---")
 	yamls, err := nsmClient.splitYAML(yamlFileContents)
 	if err != nil {
@@ -103,7 +101,7 @@ func (nsmClient *NSMClient) applyConfigChange(ctx context.Context, yamlFileConte
 	}
 	return nil
 }
-func (nsmClient *NSMClient) splitYAML(yamlContents string) ([]string, error) {
+func (nsmClient *Client) splitYAML(yamlContents string) ([]string, error) {
 	yamlDecoder, ok := NewDocumentDecoder(ioutil.NopCloser(bytes.NewReader([]byte(yamlContents)))).(*YAMLDecoder)
 	if !ok {
 		err := fmt.Errorf("unable to create a yaml decoder")
@@ -141,7 +139,7 @@ func (nsmClient *NSMClient) splitYAML(yamlContents string) ([]string, error) {
 	return result, nil
 }
 
-func (nsmClient *NSMClient) applyRulePayload(ctx context.Context, namespace string, newBytes []byte, delete bool) error {
+func (nsmClient *Client) applyRulePayload(ctx context.Context, namespace string, newBytes []byte, delete bool) error {
 	if nsmClient.k8sDynamicClient == nil {
 		return errors.New("mesh client has not been created")
 	}
@@ -173,7 +171,7 @@ func (nsmClient *NSMClient) applyRulePayload(ctx context.Context, namespace stri
 	return nil
 }
 
-func (nsmClient *NSMClient) executeRule(ctx context.Context, data *unstructured.Unstructured, namespace string, delete bool) error {
+func (nsmClient *Client) executeRule(ctx context.Context, data *unstructured.Unstructured, namespace string, delete bool) error {
 	// logrus.Debug("========================================================")
 	// logrus.Debugf("Received data: %+#v", data)
 	if namespace != "" {
@@ -222,7 +220,7 @@ func (nsmClient *NSMClient) executeRule(ctx context.Context, data *unstructured.
 	return nil
 }
 
-func (nsmClient *NSMClient) createResource(ctx context.Context, res schema.GroupVersionResource, data *unstructured.Unstructured) error {
+func (nsmClient *Client) createResource(ctx context.Context, res schema.GroupVersionResource, data *unstructured.Unstructured) error {
 	_, err := nsmClient.k8sDynamicClient.Resource(res).Namespace(data.GetNamespace()).Create(data, metav1.CreateOptions{})
 	if err != nil {
 		err = errors.Wrapf(err, "unable to create the requested resource, attempting operation without namespace")
@@ -239,7 +237,7 @@ func (nsmClient *NSMClient) createResource(ctx context.Context, res schema.Group
 	return nil
 }
 
-func (nsmClient *NSMClient) deleteResource(ctx context.Context, res schema.GroupVersionResource, data *unstructured.Unstructured) error {
+func (nsmClient *Client) deleteResource(ctx context.Context, res schema.GroupVersionResource, data *unstructured.Unstructured) error {
 	if nsmClient.k8sDynamicClient == nil {
 		return errors.New("mesh client has not been created")
 	}
@@ -279,7 +277,7 @@ func (nsmClient *NSMClient) deleteResource(ctx context.Context, res schema.Group
 	return nil
 }
 
-func (nsmClient *NSMClient) getResource(ctx context.Context, res schema.GroupVersionResource, data *unstructured.Unstructured) (*unstructured.Unstructured, error) {
+func (nsmClient *Client) getResource(ctx context.Context, res schema.GroupVersionResource, data *unstructured.Unstructured) (*unstructured.Unstructured, error) {
 	data1, err := nsmClient.k8sDynamicClient.Resource(res).Namespace(data.GetNamespace()).Get(data.GetName(), metav1.GetOptions{})
 	if err != nil {
 		err = errors.Wrap(err, "unable to retrieve the resource with a matching name, attempting operation without namespace")
@@ -296,7 +294,7 @@ func (nsmClient *NSMClient) getResource(ctx context.Context, res schema.GroupVer
 	return data1, nil
 }
 
-func (nsmClient *NSMClient) updateResource(ctx context.Context, res schema.GroupVersionResource, data *unstructured.Unstructured) error {
+func (nsmClient *Client) updateResource(ctx context.Context, res schema.GroupVersionResource, data *unstructured.Unstructured) error {
 	if _, err := nsmClient.k8sDynamicClient.Resource(res).Namespace(data.GetNamespace()).Update(data, metav1.UpdateOptions{}); err != nil {
 		err = errors.Wrap(err, "unable to update resource with the given name, attempting operation without namespace")
 		logrus.Warn(err)
@@ -310,8 +308,9 @@ func (nsmClient *NSMClient) updateResource(ctx context.Context, res schema.Group
 	logrus.Infof("Updated Resource of type: %s and name: %s", data.GetKind(), data.GetName())
 	return nil
 }
+
 // ApplyOperation is a method invoked to apply a particular operation on the mesh in a namespace
-func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.ApplyRuleRequest) (*meshes.ApplyRuleResponse, error) {
+func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.ApplyRuleRequest) (*meshes.ApplyRuleResponse, error) {
 	if arReq == nil {
 		return nil, errors.New("mesh client has not been created")
 	}
@@ -368,17 +367,17 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 			OperationId: arReq.OperationId,
 		}, nil
 
-	case installICMPCommand:
+	case installsampleappCommand:
 		go func() {
 			opName1 := "deploying"
 			if arReq.DeleteOp {
 				opName1 = "removing"
 			}
-			if err := nsmClient.executeICMPInstall(ctx, arReq); err != nil {
+			if err := nsmClient.executesampleappInstall(ctx, arReq); err != nil {
 				nsmClient.eventChan <- &meshes.EventsResponse{
 					OperationId: arReq.OperationId,
 					EventType:   meshes.EventType_ERROR,
-					Summary:     fmt.Sprintf("Error while %s the ICMP App", opName1),
+					Summary:     fmt.Sprintf("Error while %s the Sample App", opName1),
 					Details:     err.Error(),
 				}
 				return
@@ -390,8 +389,8 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 			nsmClient.eventChan <- &meshes.EventsResponse{
 				OperationId: arReq.OperationId,
 				EventType:   meshes.EventType_INFO,
-				Summary:     fmt.Sprintf(" ICMP app %s successfully", opName),
-				Details:     fmt.Sprintf("The ICMP app is now %s.", opName),
+				Summary:     fmt.Sprintf(" Sample app %s successfully", opName),
+				Details:     fmt.Sprintf("Sample app is now %s.", opName),
 			}
 			return
 		}()
@@ -414,30 +413,11 @@ func (nsmClient *NSMClient) ApplyOperation(ctx context.Context, arReq *meshes.Ap
 	return &meshes.ApplyRuleResponse{}, nil
 }
 
-func (nsmClient *NSMClient) executeInstall(ctx context.Context, installmTLS bool, arReq *meshes.ApplyRuleRequest) error {
+func (nsmClient *Client) executeInstall(ctx context.Context, installmTLS bool, arReq *meshes.ApplyRuleRequest) error {
 
 	var err error
 	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/nsm")
-	if err != nil {
-		logrus.Infof("Chart shows error ", err)
-	}
-	manifests, err := renderManifests(context.TODO(), chart, "", "nsm", arReq.Namespace, "")
 
-	for _, element := range manifests {
-		err = nsmClient.applyConfigChange(ctx, element.Content, arReq.Namespace, arReq.DeleteOp)
-		if err != nil {
-			return err
-		}
-	}
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-func (nsmClient *NSMClient) executeICMPInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
-
-	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/vpp-icmp-responder")
 	if err != nil {
 		logrus.Errorf("Chart shows error ", err)
 	}
@@ -453,10 +433,21 @@ func (nsmClient *NSMClient) executeICMPInstall(ctx context.Context, arReq *meshe
 	if err != nil {
 		return err
 	}
+
+	return nil
+}
+func (nsmClient *Client) executesampleappInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
+
+	yamlFileContents, err := nsmClient.getComponentYAML(path.Join("nsm", "config_templates/sample-application.yaml"))
+	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
+
+	if err != nil {
+		return err
+	}
 	return nil
 }
 
-func (nsmClient *NSMClient) executeTemplate(ctx context.Context, username, namespace, templateName string) (string, error) {
+func (nsmClient *Client) executeTemplate(ctx context.Context, username, namespace, templateName string) (string, error) {
 	tmpl, err := template.ParseFiles(path.Join("nsm", "config_templates", templateName))
 	if err != nil {
 		err = errors.Wrapf(err, "unable to parse template")
@@ -477,7 +468,7 @@ func (nsmClient *NSMClient) executeTemplate(ctx context.Context, username, names
 }
 
 //CreateMeshInstance is called from UI
-func (nsmClient *NSMClient) CreateMeshInstance(_ context.Context, k8sReq *meshes.CreateMeshInstanceRequest) (*meshes.CreateMeshInstanceResponse, error) {
+func (nsmClient *Client) CreateMeshInstance(_ context.Context, k8sReq *meshes.CreateMeshInstanceRequest) (*meshes.CreateMeshInstanceResponse, error) {
 	var k8sConfig []byte
 	contextName := ""
 	if k8sReq != nil {
@@ -500,7 +491,7 @@ func (nsmClient *NSMClient) CreateMeshInstance(_ context.Context, k8sReq *meshes
 }
 
 // StreamEvents - streams generated/collected events to the client
-func (nsmClient *NSMClient) StreamEvents(in *meshes.EventsRequest, stream meshes.MeshService_StreamEventsServer) error {
+func (nsmClient *Client) StreamEvents(in *meshes.EventsRequest, stream meshes.MeshService_StreamEventsServer) error {
 	logrus.Debugf("waiting on event stream. . .")
 	for {
 		select {
@@ -522,9 +513,9 @@ func (nsmClient *NSMClient) StreamEvents(in *meshes.EventsRequest, stream meshes
 	}
 	return nil
 }
-// SupportedOperations - returns a list of supported operations on the mesh
-func (nsmClient *NSMClient) SupportedOperations(context.Context, *meshes.SupportedOperationsRequest) (*meshes.SupportedOperationsResponse, error) {
 
+// SupportedOperations - returns a list of supported operations on the mesh
+func (nsmClient *Client) SupportedOperations(context.Context, *meshes.SupportedOperationsRequest) (*meshes.SupportedOperationsResponse, error) {
 	supportedOpsCount := len(supportedOps)
 	result := make([]*meshes.SupportedOperation, supportedOpsCount)
 	i := 0
