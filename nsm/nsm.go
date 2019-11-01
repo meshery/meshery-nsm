@@ -10,7 +10,7 @@ import (
 	"strings"
 	"text/template"
 	"time"
-	"k8s.io/helm/pkg/chartutil"
+
 	"github.com/ghodss/yaml"
 	"github.com/layer5io/meshery-nsm/meshes"
 	"github.com/pkg/errors"
@@ -19,6 +19,7 @@ import (
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
 	"k8s.io/apimachinery/pkg/runtime/schema"
+	"k8s.io/helm/pkg/chartutil"
 )
 
 // MeshName just returns the name of the mesh the client is representing
@@ -32,67 +33,33 @@ func (nsmClient *Client) createNamespace(ctx context.Context, namespace string) 
 	if err != nil {
 		return err
 	}
-	if err := nsmClient.applyConfigChange(ctx, yamlFileContents, namespace, false); err != nil {
+	if err := nsmClient.applyConfigChange(ctx, yamlFileContents, namespace, false, false); err != nil {
 		return err
 	}
 
 	return nil
 }
-func (nsmClient *Client) labelNamespaceForAutoInjection(ctx context.Context, namespace string) error {
-	ns := &unstructured.Unstructured{}
-	res := schema.GroupVersionResource{
-		Version:  "v1",
-		Resource: "namespaces",
-	}
-	ns.SetName(namespace)
-	ns, err := nsmClient.getResource(ctx, res, ns)
-	if err != nil {
-		if strings.HasSuffix(err.Error(), "not found") {
-			if err = nsmClient.createNamespace(ctx, namespace); err != nil {
-				return err
-			}
-
-			ns := &unstructured.Unstructured{}
-			ns.SetName(namespace)
-			ns, err = nsmClient.getResource(ctx, res, ns)
-			if err != nil {
-				return err
-			}
-		} else {
-			return err
-		}
-	}
-	logrus.Debugf("retrieved namespace: %+#v", ns)
-	if ns == nil {
-		ns = &unstructured.Unstructured{}
-		ns.SetName(namespace)
-	}
-	ns.SetLabels(map[string]string{
-		"istio-injection": "enabled",
-	})
-	err = nsmClient.updateResource(ctx, res, ns)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-func (nsmClient *Client) applyConfigChange(ctx context.Context, yamlFileContents, namespace string, delete bool) error {
-	// yamls := strings.Split(yamlFileContents, "---")
+func (nsmClient *Client) applyConfigChange(ctx context.Context, yamlFileContents, namespace string, delete, isCustomOp bool) error {
 	yamls, err := nsmClient.splitYAML(yamlFileContents)
 	if err != nil {
 		err = errors.Wrap(err, "error while splitting yaml")
 		logrus.Error(err)
 		return err
 	}
-
 	for _, yml := range yamls {
 		if strings.TrimSpace(yml) != "" {
-			if err := nsmClient.applyRulePayload(ctx, namespace, []byte(yml), delete); err != nil {
+			if err := nsmClient.applyRulePayload(ctx, namespace, []byte(yml), delete, isCustomOp); err != nil {
 				errStr := strings.TrimSpace(err.Error())
-				if delete && (strings.HasSuffix(errStr, "not found") ||
-					strings.HasSuffix(errStr, "the server could not find the requested resource")) {
-					// logrus.Debugf("skipping error. . .")
-					continue
+				if delete {
+					if strings.HasSuffix(errStr, "not found") ||
+						strings.HasSuffix(errStr, "the server could not find the requested resource") {
+						// logrus.Debugf("skipping error. . .")
+						continue
+					}
+				} else {
+					if strings.HasSuffix(errStr, "already exists") {
+						continue
+					}
 				}
 				// logrus.Debugf("returning error: %v", err)
 				return err
@@ -101,6 +68,7 @@ func (nsmClient *Client) applyConfigChange(ctx context.Context, yamlFileContents
 	}
 	return nil
 }
+
 func (nsmClient *Client) splitYAML(yamlContents string) ([]string, error) {
 	yamlDecoder, ok := NewDocumentDecoder(ioutil.NopCloser(bytes.NewReader([]byte(yamlContents)))).(*YAMLDecoder)
 	if !ok {
@@ -139,7 +107,7 @@ func (nsmClient *Client) splitYAML(yamlContents string) ([]string, error) {
 	return result, nil
 }
 
-func (nsmClient *Client) applyRulePayload(ctx context.Context, namespace string, newBytes []byte, delete bool) error {
+func (nsmClient *Client) applyRulePayload(ctx context.Context, namespace string, newBytes []byte, delete, isCustomOp bool) error {
 	if nsmClient.k8sDynamicClient == nil {
 		return errors.New("mesh client has not been created")
 	}
@@ -162,16 +130,16 @@ func (nsmClient *Client) applyRulePayload(ctx context.Context, namespace string,
 		if data.IsList() {
 			err = data.EachListItem(func(r runtime.Object) error {
 				dataL, _ := r.(*unstructured.Unstructured)
-				return nsmClient.executeRule(ctx, dataL, namespace, delete)
+				return nsmClient.executeRule(ctx, dataL, namespace, delete, isCustomOp)
 			})
 			return err
 		}
-		return nsmClient.executeRule(ctx, data, namespace, delete)
+		return nsmClient.executeRule(ctx, data, namespace, delete, isCustomOp)
 	}
 	return nil
 }
 
-func (nsmClient *Client) executeRule(ctx context.Context, data *unstructured.Unstructured, namespace string, delete bool) error {
+func (nsmClient *Client) executeRule(ctx context.Context, data *unstructured.Unstructured, namespace string, delete, isCustomOp bool) error {
 	// logrus.Debug("========================================================")
 	// logrus.Debugf("Received data: %+#v", data)
 	if namespace != "" {
@@ -193,6 +161,10 @@ func (nsmClient *Client) executeRule(ctx context.Context, data *unstructured.Uns
 		kind = "logentries"
 	case "kubernetes":
 		kind = "kuberneteses"
+	case "podsecuritypolicy":
+		kind = "podsecuritypolicies"
+	case "serviceentry":
+		kind = "serviceentries"
 	default:
 		kind += "s"
 	}
@@ -207,14 +179,47 @@ func (nsmClient *Client) executeRule(ctx context.Context, data *unstructured.Uns
 	if delete {
 		return nsmClient.deleteResource(ctx, res, data)
 	}
-
+	trackRetry := 0
+RETRY:
 	if err := nsmClient.createResource(ctx, res, data); err != nil {
-		data1, err := nsmClient.getResource(ctx, res, data)
-		if err != nil {
-			return err
-		}
-		if err = nsmClient.updateResource(ctx, res, data1); err != nil {
-			return err
+		if isCustomOp {
+			if err := nsmClient.deleteResource(ctx, res, data); err != nil {
+				return err
+			}
+			time.Sleep(time.Second)
+			if err := nsmClient.createResource(ctx, res, data); err != nil {
+				return err
+			}
+			// data1, err := iClient.getResource(ctx, res, data)
+			// if err != nil {
+			// 	return err
+			// }
+			// if err = iClient.updateResource(ctx, res, data1); err != nil {
+			// 	return err
+			// }
+		} else {
+			data1, err := nsmClient.getResource(ctx, res, data)
+			if err != nil {
+				return err
+			}
+			data.SetCreationTimestamp(data1.GetCreationTimestamp())
+			data.SetGenerateName(data1.GetGenerateName())
+			data.SetGeneration(data1.GetGeneration())
+			data.SetSelfLink(data1.GetSelfLink())
+			data.SetResourceVersion(data1.GetResourceVersion())
+			// data.DeepCopyInto(data1)
+			if err = nsmClient.updateResource(ctx, res, data); err != nil {
+				if strings.Contains(err.Error(), "the server does not allow this method on the requested resource") {
+					logrus.Info("attempting to delete resource. . . ")
+					nsmClient.deleteResource(ctx, res, data)
+					trackRetry++
+					if trackRetry <= 3 {
+						goto RETRY
+					} // else return error
+				}
+				return err
+			}
+			// return err
 		}
 	}
 	return nil
@@ -325,27 +330,73 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 
 	var yamlFileContents string
 	var err error
-	installWithmTLS := false
-	nsmClient.downloadNSM()
+	isCustomOp := false
+	var nsmFolderName, appName string
+
 	if !arReq.DeleteOp {
-		if err := nsmClient.labelNamespaceForAutoInjection(ctx, arReq.Namespace); err != nil {
-			logrus.Errorf("Namespace Creation ", err)
-		}
+		nsmClient.createNamespace(ctx, arReq.Namespace)
 	}
 	switch arReq.OpName {
 	case customOpCommand:
 		yamlFileContents = arReq.CustomBody
+		isCustomOp = true
+	case installICMPCommand:
+		if nsmFolderName == "" {
+			nsmFolderName = "icmp-responder"
+			appName = "ICMP Application"
+		}
+		fallthrough
+	case installVPNCommand:
+		if nsmFolderName == "" {
+			nsmFolderName = "vpn"
+			appName = "VPN Application"
+		}
+		fallthrough
+	case installVPNICMPCommand:
+		if nsmFolderName == "" {
+			nsmFolderName = "vpp-icmp-responder"
+			appName = "VPN ICMP Application"
+		}
+		fallthrough
 	case installNSMCommand:
 		go func() {
 			opName1 := "deploying"
 			if arReq.DeleteOp {
 				opName1 = "removing"
 			}
-			if err := nsmClient.executeInstall(ctx, installWithmTLS, arReq); err != nil {
+			customConfig := ""
+			if nsmFolderName == "" {
+				nsmFolderName = "nsm"
+				appName = "NSM"
+				data, err := ioutil.ReadFile(path.Join("nsm", "config_templates/values.yaml"))
+				if err != nil {
+					err = errors.Wrapf(err, "unable to find the values.yml file")
+					logrus.Error(err)
+					nsmClient.eventChan <- &meshes.EventsResponse{
+						OperationId: arReq.OperationId,
+						EventType:   meshes.EventType_ERROR,
+						Summary:     fmt.Sprintf("Error while %s %s", opName1, appName),
+						Details:     err.Error(),
+					}
+					return
+				}
+				customConfig = string(data)
+				logrus.Infof("the loaded file %s", customConfig)
+			}
+			if err = nsmClient.downloadNSM(); err != nil {
 				nsmClient.eventChan <- &meshes.EventsResponse{
 					OperationId: arReq.OperationId,
 					EventType:   meshes.EventType_ERROR,
-					Summary:     fmt.Sprintf("Error while %s NSM", opName1),
+					Summary:     fmt.Sprintf("Error while %s %s", opName1, appName),
+					Details:     err.Error(),
+				}
+				return
+			}
+			if err := nsmClient.executeNSMHelmInstall(ctx, arReq, customConfig, nsmFolderName); err != nil {
+				nsmClient.eventChan <- &meshes.EventsResponse{
+					OperationId: arReq.OperationId,
+					EventType:   meshes.EventType_ERROR,
+					Summary:     fmt.Sprintf("Error while %s %s", opName1, appName),
 					Details:     err.Error(),
 				}
 				return
@@ -357,41 +408,9 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 			nsmClient.eventChan <- &meshes.EventsResponse{
 				OperationId: arReq.OperationId,
 				EventType:   meshes.EventType_INFO,
-				Summary:     fmt.Sprintf("NSM %s successfully", opName),
+				Summary:     fmt.Sprintf("%s %s successfully", appName, opName),
 			}
 
-			return
-		}()
-
-		return &meshes.ApplyRuleResponse{
-			OperationId: arReq.OperationId,
-		}, nil
-
-	case installsampleappCommand:
-		go func() {
-			opName1 := "deploying"
-			if arReq.DeleteOp {
-				opName1 = "removing"
-			}
-			if err := nsmClient.executesampleappInstall(ctx, arReq); err != nil {
-				nsmClient.eventChan <- &meshes.EventsResponse{
-					OperationId: arReq.OperationId,
-					EventType:   meshes.EventType_ERROR,
-					Summary:     fmt.Sprintf("Error while %s the Sample App", opName1),
-					Details:     err.Error(),
-				}
-				return
-			}
-			opName := "deployed"
-			if arReq.DeleteOp {
-				opName = "removed"
-			}
-			nsmClient.eventChan <- &meshes.EventsResponse{
-				OperationId: arReq.OperationId,
-				EventType:   meshes.EventType_INFO,
-				Summary:     fmt.Sprintf(" Sample app %s successfully", opName),
-				Details:     fmt.Sprintf("Sample app is now %s.", opName),
-			}
 			return
 		}()
 
@@ -406,43 +425,72 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 		}
 	}
 
-	if err := nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp); err != nil {
-		return nil, err
-	}
+	go func() {
+		logrus.Debug("in the routine. . . .")
+		opName1 := "deploying"
+		if arReq.DeleteOp {
+			opName1 = "removing"
+		}
+		if err := nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp, isCustomOp); err != nil {
+			nsmClient.eventChan <- &meshes.EventsResponse{
+				OperationId: arReq.OperationId,
+				EventType:   meshes.EventType_ERROR,
+				Summary:     fmt.Sprintf("Error while %s \"%s\"", opName1, op.name),
+				Details:     err.Error(),
+			}
+			return
+		}
+		opName := "deployed"
+		if arReq.DeleteOp {
+			opName = "removed"
+		}
+		nsmClient.eventChan <- &meshes.EventsResponse{
+			OperationId: arReq.OperationId,
+			EventType:   meshes.EventType_INFO,
+			Summary:     fmt.Sprintf("\"%s\" %s successfully", op.name, opName),
+			Details:     fmt.Sprintf("\"%s\" %s successfully", op.name, opName),
+		}
+	}()
 
-	return &meshes.ApplyRuleResponse{}, nil
+	return &meshes.ApplyRuleResponse{
+		OperationId: arReq.OperationId,
+	}, nil
 }
 
-func (nsmClient *Client) executeInstall(ctx context.Context, installmTLS bool, arReq *meshes.ApplyRuleRequest) error {
-
-	var err error
-	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/nsm")
-
+// installs NSM using helm
+func (nsmClient *Client) executeNSMInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
+	data, err := ioutil.ReadFile(path.Join("nsm", "config_templates/values.yaml"))
 	if err != nil {
-		logrus.Errorf("Chart shows error ", err)
+		err = errors.Wrapf(err, "unable to find the values.yml file")
+		logrus.Error(err)
+		return err
+	}
+	logrus.Infof("the loaded file %s", data)
+
+	return nsmClient.executeNSMHelmInstall(ctx, arReq, string(data), "nsm")
+}
+
+// installs any helm stuff as part of the NSM git repo
+func (nsmClient *Client) executeNSMHelmInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest, customValues, folderName string) error {
+	logrus.Debugf("destination folder: %s", destinationFolder)
+	chart, err := chartutil.Load(path.Join(destinationFolder, "deployments", "helm", folderName))
+	if err != nil {
+		err = errors.Wrapf(err, "Chart shows error")
+		logrus.Error(err)
+		return err
 	}
 
-	manifests, err := renderManifests(context.TODO(), chart, "", "nsm", arReq.Namespace, "")
+	manifests, err := renderManifests(ctx, chart, "nsm", arReq.Namespace, "", customValues)
+	if err != nil {
+		err = errors.Wrapf(err, "render manifests error")
+		logrus.Error(err)
+		return err
+	}
 
 	for _, element := range manifests {
-		err = nsmClient.applyConfigChange(ctx, element.Content, arReq.Namespace, arReq.DeleteOp)
-		if err != nil {
+		if err = nsmClient.applyConfigChange(ctx, element.Content, arReq.Namespace, arReq.DeleteOp, false); err != nil {
 			return err
 		}
-	}
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-func (nsmClient *Client) executesampleappInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
-
-	yamlFileContents, err := nsmClient.getComponentYAML(path.Join("nsm", "config_templates/sample-application.yaml"))
-	nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp)
-
-	if err != nil {
-		return err
 	}
 	return nil
 }
@@ -513,7 +561,6 @@ func (nsmClient *Client) StreamEvents(in *meshes.EventsRequest, stream meshes.Me
 	}
 	return nil
 }
-
 
 // SupportedOperations - returns a list of supported operations on the mesh
 func (nsmClient *Client) SupportedOperations(context.Context, *meshes.SupportedOperationsRequest) (*meshes.SupportedOperationsResponse, error) {
