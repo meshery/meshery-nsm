@@ -473,14 +473,15 @@ func (nsmClient *Client) executeNSMInstall(ctx context.Context, arReq *meshes.Ap
 
 // installs any helm stuff as part of the NSM git repo
 func (nsmClient *Client) executeNSMHelmInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest, customValues, folderName string) error {
-	chart, err := chartutil.Load(destinationFolder + "/deployments/helm/" + folderName)
+	logrus.Debugf("destination folder: %s", destinationFolder)
+	chart, err := chartutil.Load(path.Join(destinationFolder, "deployments", "helm", folderName))
 	if err != nil {
 		err = errors.Wrapf(err, "Chart shows error")
 		logrus.Error(err)
 		return err
 	}
 
-	manifests, err := renderManifests(ctx, chart, "", "nsm", arReq.Namespace, "", "")
+	manifests, err := renderManifests(ctx, chart, "nsm", arReq.Namespace, "", customValues)
 	if err != nil {
 		err = errors.Wrapf(err, "render manifests error")
 		logrus.Error(err)

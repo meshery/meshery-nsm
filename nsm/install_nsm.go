@@ -55,21 +55,20 @@ func (nsmClient *Client) downloadNSM() error {
 
 		// Clone the repository into the temp dir
 		logrus.Infof("Cloning NSM repo...")
-		_, err = git.PlainClone(destinationFolder, false, &git.CloneOptions{
+		if _, err = git.PlainClone(destinationFolder, false, &git.CloneOptions{
 			URL: repoURL,
-		})
-
-		if err != nil {
+		}); err != nil {
 			logrus.Errorf("Error Cloning the repo", err)
 			return err
 		}
 
-		logrus.Infof("Clone of NSM repo completed in ", destinationFolder)
+		logrus.Infof("Clone of NSM repo completed in %s", destinationFolder)
+		return nil
 	}
 	return err
 }
 
-func renderManifests(ctx context.Context, c *chart.Chart, values, releaseName, namespace, kubeVersion, customConfig string) ([]manifest.Manifest, error) {
+func renderManifests(ctx context.Context, c *chart.Chart, releaseName, namespace, kubeVersion, customConfig string) ([]manifest.Manifest, error) {
 	if strings.TrimSpace(customConfig) != "" {
 		c.Values.Raw = customConfig
 	}
@@ -82,8 +81,8 @@ func renderManifests(ctx context.Context, c *chart.Chart, values, releaseName, n
 		},
 		KubeVersion: kubeVersion,
 	}
+	config := &chart.Config{Raw: "{}", Values: map[string]*chart.Value{}}
 
-	config := &chart.Config{Raw: values, Values: map[string]*chart.Value{}}
 	renderedTemplates, err := renderutil.Render(c, config, renderOpts)
 	if err != nil {
 		return nil, err
