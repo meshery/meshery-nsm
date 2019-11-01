@@ -332,7 +332,7 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 	var yamlFileContents string
 	var err error
 	isCustomOp := false
-	var nsmFolderName string
+	var nsmFolderName, appName string
 
 	if !arReq.DeleteOp {
 		nsmClient.createNamespace(ctx, arReq.Namespace)
@@ -344,16 +344,19 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 	case installICMPCommand:
 		if nsmFolderName == "" {
 			nsmFolderName = "icmp-responder"
+			appName = "ICMP Application"
 		}
 		fallthrough
 	case installVPNCommand:
 		if nsmFolderName == "" {
 			nsmFolderName = "vpn"
+			appName = "VPN Application"
 		}
 		fallthrough
 	case installVPNICMPCommand:
 		if nsmFolderName == "" {
 			nsmFolderName = "vpp-icmp-responder"
+			appName = "VPN ICMP Application"
 		}
 		fallthrough
 	case installNSMCommand:
@@ -365,6 +368,7 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 			customConfig := ""
 			if nsmFolderName == "" {
 				nsmFolderName = "nsm"
+				appName = "NSM"
 				data, err := ioutil.ReadFile(path.Join("nsm", "config_templates/values.yaml"))
 				if err != nil {
 					err = errors.Wrapf(err, "unable to find the values.yml file")
@@ -372,7 +376,7 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 					nsmClient.eventChan <- &meshes.EventsResponse{
 						OperationId: arReq.OperationId,
 						EventType:   meshes.EventType_ERROR,
-						Summary:     fmt.Sprintf("Error while %s NSM", opName1),
+						Summary:     fmt.Sprintf("Error while %s %s", opName1, appName),
 						Details:     err.Error(),
 					}
 					return
@@ -384,7 +388,7 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 				nsmClient.eventChan <- &meshes.EventsResponse{
 					OperationId: arReq.OperationId,
 					EventType:   meshes.EventType_ERROR,
-					Summary:     fmt.Sprintf("Error while %s NSM", opName1),
+					Summary:     fmt.Sprintf("Error while %s %s", opName1, appName),
 					Details:     err.Error(),
 				}
 				return
@@ -393,7 +397,7 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 				nsmClient.eventChan <- &meshes.EventsResponse{
 					OperationId: arReq.OperationId,
 					EventType:   meshes.EventType_ERROR,
-					Summary:     fmt.Sprintf("Error while %s NSM", opName1),
+					Summary:     fmt.Sprintf("Error while %s %s", opName1, appName),
 					Details:     err.Error(),
 				}
 				return
@@ -405,7 +409,7 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 			nsmClient.eventChan <- &meshes.EventsResponse{
 				OperationId: arReq.OperationId,
 				EventType:   meshes.EventType_INFO,
-				Summary:     fmt.Sprintf("NSM %s successfully", opName),
+				Summary:     fmt.Sprintf("%s %s successfully", appName, opName),
 			}
 
 			return
