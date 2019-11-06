@@ -410,6 +410,7 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 				OperationId: arReq.OperationId,
 				EventType:   meshes.EventType_INFO,
 				Summary:     fmt.Sprintf("%s %s successfully", appName, opName),
+				Details: fmt.Sprintf("%s %s successfully", appName, opName),
 			}
 
 			return
@@ -467,6 +468,7 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 			}
 			detailedMsg = fmt.Sprintf("%s is now %s. %s", appName, opName, portMsg)
 		}
+		logrus.Debugf("details msg: %s", detailedMsg)
 		nsmClient.eventChan <- &meshes.EventsResponse{
 			OperationId: arReq.OperationId,
 			EventType:   meshes.EventType_INFO,
