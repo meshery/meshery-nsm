@@ -56,7 +56,9 @@ func (nsmClient *Client) downloadNSM() error {
 		// Clone the repository into the temp dir
 		logrus.Infof("Cloning NSM repo...")
 		if _, err = git.PlainClone(destinationFolder, false, &git.CloneOptions{
-			URL: repoURL,
+			URL:          repoURL,
+			SingleBranch: true,
+			Depth:        1,
 		}); err != nil {
 			logrus.Errorf("Error Cloning the repo", err)
 			return err

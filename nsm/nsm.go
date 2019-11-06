@@ -331,7 +331,7 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 	var yamlFileContents string
 	var err error
 	isCustomOp := false
-	var nsmFolderName, appName string
+	var nsmFolderName, appName, svcName string
 
 	if !arReq.DeleteOp {
 		nsmClient.createNamespace(ctx, arReq.Namespace)
@@ -405,6 +405,7 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 			if arReq.DeleteOp {
 				opName = "removed"
 			}
+
 			nsmClient.eventChan <- &meshes.EventsResponse{
 				OperationId: arReq.OperationId,
 				EventType:   meshes.EventType_INFO,
@@ -417,7 +418,9 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 		return &meshes.ApplyRuleResponse{
 			OperationId: arReq.OperationId,
 		}, nil
-
+	case installHelloNSMApp:
+		svcName = "appa"
+		fallthrough
 	default:
 		yamlFileContents, err = nsmClient.executeTemplate(ctx, arReq.Username, arReq.Namespace, op.templateName)
 		if err != nil {
@@ -444,11 +447,31 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 		if arReq.DeleteOp {
 			opName = "removed"
 		}
+		detailedMsg := fmt.Sprintf("\"%s\" %s successfully", op.name, opName)
+		if svcName != "" && !arReq.DeleteOp {
+			ports, err := nsmClient.getSVCPort(ctx, svcName, arReq.Namespace)
+			if err != nil {
+				nsmClient.eventChan <- &meshes.EventsResponse{
+					OperationId: arReq.OperationId,
+					EventType:   meshes.EventType_WARN,
+					Summary:     fmt.Sprintf("%s is deployed but unable to retrieve the port info for the service at the moment", appName),
+					Details:     err.Error(),
+				}
+				return
+			}
+			var portMsg string
+			if len(ports) == 1 {
+				portMsg = fmt.Sprintf("The service is possibly available on port: %v", ports)
+			} else if len(ports) > 1 {
+				portMsg = fmt.Sprintf("The service is possibly available on one of the following ports: %v", ports)
+			}
+			detailedMsg = fmt.Sprintf("%s is now %s. %s", appName, opName, portMsg)
+		}
 		nsmClient.eventChan <- &meshes.EventsResponse{
 			OperationId: arReq.OperationId,
 			EventType:   meshes.EventType_INFO,
 			Summary:     fmt.Sprintf("\"%s\" %s successfully", op.name, opName),
-			Details:     fmt.Sprintf("\"%s\" %s successfully", op.name, opName),
+			Details:     detailedMsg,
 		}
 	}()
 
@@ -579,4 +602,34 @@ func (nsmClient *Client) SupportedOperations(context.Context, *meshes.SupportedO
 	return &meshes.SupportedOperationsResponse{
 		Ops: result,
 	}, nil
+}
+
+func (iClient *Client) getSVCPort(ctx context.Context, svc, namespace string) ([]int64, error) {
+	ns := &unstructured.Unstructured{}
+	res := schema.GroupVersionResource{
+		Version:  "v1",
+		Resource: "services",
+	}
+	ns.SetName(svc)
+	ns.SetNamespace(namespace)
+	ns, err := iClient.getResource(ctx, res, ns)
+	if err != nil {
+		err = errors.Wrapf(err, "unable to get service details")
+		logrus.Error(err)
+		return nil, err
+	}
+	svcInst := ns.UnstructuredContent()
+	spec := svcInst["spec"].(map[string]interface{})
+	ports, _ := spec["ports"].([]interface{})
+	nodePorts := []int64{}
+	for _, port := range ports {
+		p, _ := port.(map[string]interface{})
+		np, ok := p["nodePort"]
+		if ok {
+			npi, _ := np.(int64)
+			nodePorts = append(nodePorts, npi)
+		}
+	}
+	logrus.Debugf("retrieved svc: %+#v", ns)
+	return nodePorts, nil
 }
