@@ -410,7 +410,7 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 				OperationId: arReq.OperationId,
 				EventType:   meshes.EventType_INFO,
 				Summary:     fmt.Sprintf("%s %s successfully", appName, opName),
-				Details: fmt.Sprintf("%s %s successfully", appName, opName),
+				Details:     fmt.Sprintf("%s %s successfully", appName, opName),
 			}
 
 			return
@@ -421,6 +421,7 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 		}, nil
 	case installHelloNSMApp:
 		svcName = "appa"
+		appName = "Hello NSM application"
 		fallthrough
 	default:
 		yamlFileContents, err = nsmClient.executeTemplate(ctx, arReq.Username, arReq.Namespace, op.templateName)
