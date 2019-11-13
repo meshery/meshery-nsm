@@ -36,7 +36,7 @@ var supportedOps = map[string]supportedOperation{
 		name:   "VPN Application",
 		opType: meshes.OpCategory_SAMPLE_APPLICATION,
 	},
-	installVPNICMPCommand: {
+	installVPPICMPCommand: {
 		name:   "VPP-ICMP Application",
 		opType: meshes.OpCategory_SAMPLE_APPLICATION,
 	},
