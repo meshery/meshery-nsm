@@ -607,7 +607,7 @@ func (nsmClient *Client) SupportedOperations(context.Context, *meshes.SupportedO
 	}, nil
 }
 
-func (iClient *Client) getSVCPort(ctx context.Context, svc, namespace string) ([]int64, error) {
+func (nsmClient *Client) getSVCPort(ctx context.Context, svc, namespace string) ([]int64, error) {
 	ns := &unstructured.Unstructured{}
 	res := schema.GroupVersionResource{
 		Version:  "v1",
@@ -615,7 +615,7 @@ func (iClient *Client) getSVCPort(ctx context.Context, svc, namespace string) ([
 	}
 	ns.SetName(svc)
 	ns.SetNamespace(namespace)
-	ns, err := iClient.getResource(ctx, res, ns)
+	ns, err := nsmClient.getResource(ctx, res, ns)
 	if err != nil {
 		err = errors.Wrapf(err, "unable to get service details")
 		logrus.Error(err)
