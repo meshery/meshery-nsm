@@ -64,12 +64,13 @@ RETRY:
 			return
 		}
 	}
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		logrus.Info("received a request")
+	rand.Seed(time.Now().UnixNano())
+	serviceURLInst.Host = ips[rand.Intn(len(ips))]
 
-		rand.Seed(time.Now().UnixNano())
-		serviceURLInst.Host = ips[rand.Intn(len(ips))]
+	http.HandleFunc("/nsm", func(w http.ResponseWriter, r *http.Request) {
+		logrus.Info("received a request")
 		logrus.Infof("computed service url: %s", serviceURLInst.String())
+
 		hc := &http.Client{Timeout: 5 * time.Second}
 		req, _ := http.NewRequest(http.MethodGet, serviceURLInst.String(), nil)
 		resp, err := hc.Do(req)
@@ -85,9 +86,37 @@ RETRY:
 			logrus.Errorf("there was an error 2: %v\n", err)
 			return
 		}
-		w.Write([]byte(fmt.Sprintf("Received data: %s \nFrom NSM IP: %s", data, serviceURLInst.Hostname())))
+		w.Header().Set("Content-type", "text/html; charset=utf-8")
+		w.Write([]byte(fmt.Sprintf("Received data: %s \nFrom NSM IP: %s\n\n<img src=\"/static/images/nsm_network.png\" width=\"100%\" />", data, serviceURLInst.Hostname())))
 		logrus.Info("request processed successfully")
 	})
+
+	http.HandleFunc("/k8s", func(w http.ResponseWriter, r *http.Request) {
+		logrus.Info("received a request")
+
+		logrus.Infof("computed service url: %s", serviceURL)
+
+		hc := &http.Client{Timeout: 5 * time.Second}
+		req, _ := http.NewRequest(http.MethodGet, serviceURL, nil)
+		resp, err := hc.Do(req)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError)+" 1", http.StatusInternalServerError)
+			logrus.Errorf("there was an error 1: %v\n", err)
+			return
+		}
+		defer resp.Body.Close()
+		data, err := ioutil.ReadAll(resp.Body)
+		if err != nil {
+			http.Error(w, http.StatusText(http.StatusInternalServerError)+" 2", http.StatusInternalServerError)
+			logrus.Errorf("there was an error 2: %v\n", err)
+			return
+		}
+		w.Header().Set("Content-type", "text/html; charset=utf-8")
+		w.Write([]byte(fmt.Sprintf("Received data: %s \nFrom kubernetes service: %s\n\n<img src=\"/static/images/k8s_network.png\" width=\"100%\" />", data, serviceURL)))
+		logrus.Info("request processed successfully")
+	})
+
+	http.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("./static"))))
 
 	http.ListenAndServe(":80", nil)
 }
