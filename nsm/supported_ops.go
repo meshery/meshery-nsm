@@ -19,7 +19,7 @@ const (
 	installNSMCommand     = "nsm_install"
 	installICMPCommand    = "icmp_sample_install"
 	installVPNCommand     = "vpn_sample_install"
-	installVPNICMPCommand = "vpn_icmp_sample_install"
+	installVPPICMPCommand = "vpp_icmp_sample_install"
 	installHelloNSMApp    = "hello_nsm_app"
 )
 
@@ -36,8 +36,8 @@ var supportedOps = map[string]supportedOperation{
 		name:   "VPN Application",
 		opType: meshes.OpCategory_SAMPLE_APPLICATION,
 	},
-	installVPNICMPCommand: {
-		name:   "VPN ICMP Application",
+	installVPPICMPCommand: {
+		name:   "VPP-ICMP Application",
 		opType: meshes.OpCategory_SAMPLE_APPLICATION,
 	},
 	installHelloNSMApp: {

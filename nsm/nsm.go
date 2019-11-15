@@ -353,10 +353,10 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 			appName = "VPN Application"
 		}
 		fallthrough
-	case installVPNICMPCommand:
+	case installVPPICMPCommand:
 		if nsmFolderName == "" {
 			nsmFolderName = "vpp-icmp-responder"
-			appName = "VPN ICMP Application"
+			appName = "VPP-ICMP Application"
 		}
 		fallthrough
 	case installNSMCommand:
