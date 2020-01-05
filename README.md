@@ -1,4 +1,8 @@
-<a href="https://layer5.io/meshery"><img align="left" src="https://raw.githubusercontent.com/layer5io/meshery/master/ui/static/img/meshery-logo/meshery-logo-light-text.png"  width="25%" /></a>
+<p style="text-align:center;" align="center">
+  <a href="https://layer5.io/meshery">
+    <img align="center" src="https://raw.githubusercontent.com/layer5io/layer5/master/assets/images/meshery/meshery-logo-tag-light-text-side.png"  width="70%" />
+  </a>
+</p>
 
 [![Docker Pulls](https://img.shields.io/docker/pulls/layer5/meshery-nsm.svg)](https://hub.docker.com/r/layer5/meshery-nsm)
 [![Go Report Card](https://goreportcard.com/badge/github.com/layer5io/meshery-nsm)](https://goreportcard.com/report/github.com/layer5io/meshery-nsm)
