@@ -1,6 +1,6 @@
-<p style="text-align:>
+<p style="text-align:center;">
   <a href="https://layer5.io/meshery">
-    <img align="center" style="margin:10px;" src="https://raw.githubusercontent.com/layer5io/layer5/master/assets/images/meshery/meshery-logo-tag-light-text-side.png"  width="70%" />
+    <img align="center" style="margin:5%;" src="https://raw.githubusercontent.com/layer5io/layer5/master/assets/images/meshery/meshery-logo-tag-light-text-side.png"  width="70%" />
   </a>
 </p>
 
