@@ -15,12 +15,13 @@ type supportedOperation struct {
 }
 
 const (
-	customOpCommand       = "custom"
-	installNSMCommand     = "nsm_install"
-	installICMPCommand    = "icmp_sample_install"
-	installVPNCommand     = "vpn_sample_install"
-	installVPPICMPCommand = "vpp_icmp_sample_install"
-	installHelloNSMApp    = "hello_nsm_app"
+	customOpCommand              = "custom"
+	installNSMCommand            = "nsm_install"
+	installICMPCommand           = "icmp_sample_install"
+	installVPNCommand            = "vpn_sample_install"
+	installVPPICMPCommand        = "vpp_icmp_sample_install"
+	installHelloNSMApp           = "hello_nsm_app"
+	installCNFExampleAppsCommand = "cnf_example_app_install"
 )
 
 var supportedOps = map[string]supportedOperation{
@@ -48,5 +49,9 @@ var supportedOps = map[string]supportedOperation{
 	customOpCommand: {
 		name:   "Custom YAML",
 		opType: meshes.OpCategory_CUSTOM,
+	},
+	installCNFExampleAppsCommand: {
+		name:   "CNF Example Apps",
+		opType: meshes.OpCategory_SAMPLE_APPLICATION,
 	},
 }
