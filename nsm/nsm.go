@@ -314,169 +314,191 @@ func (nsmClient *Client) updateResource(ctx context.Context, res schema.GroupVer
 	return nil
 }
 
+func (nsmClient *Client) prepareOperation(operationName string) map[string]string {
+	operationData := map[string]string{
+		"nsmFolderName": "",
+		"appName":       "",
+		"svcName":       "",
+	}
+	switch operationName {
+	case installICMPCommand:
+		if operationData["nsmFolderName"] == "" {
+			operationData["nsmFolderName"] = "icmp-responder"
+			operationData["appName"] = "ICMP Application"
+		}
+	case installVPNCommand:
+		if operationData["nsmFolderName"] == "" {
+			operationData["nsmFolderName"] = "vpn"
+			operationData["appName"] = "VPN Application"
+		}
+	case installVPPICMPCommand:
+		if operationData["nsmFolderName"] == "" {
+			operationData["nsmFolderName"] = "vpp-icmp-responder"
+			operationData["appName"] = "VPP-ICMP Application"
+		}
+	case installHelloNSMApp:
+		operationData["svcName"] = "appa"
+		operationData["appName"] = "Hello NSM application"
+	}
+	return operationData
+}
+
+func (nsmClient *Client) installNSM(ctx context.Context, arReq *meshes.ApplyRuleRequest, nsmFolderName string, appName string) {
+	opName1 := "deploying"
+	if arReq.DeleteOp {
+		opName1 = "removing"
+	}
+	customConfig := ""
+	if nsmFolderName == "" {
+		nsmFolderName = "nsm"
+		appName = "NSM"
+		data, err := ioutil.ReadFile(path.Join("nsm", "config_templates/values.yaml"))
+		if err != nil {
+			err = errors.Wrapf(err, "unable to find the values.yml file")
+			logrus.Error(err)
+			nsmClient.eventChan <- &meshes.EventsResponse{
+				OperationId: arReq.OperationId,
+				EventType:   meshes.EventType_ERROR,
+				Summary:     fmt.Sprintf("Error while %s %s", opName1, appName),
+				Details:     err.Error(),
+			}
+			return
+		}
+		customConfig = string(data)
+		logrus.Infof("the loaded file %s", customConfig)
+	}
+	if err := nsmClient.downloadNSM(); err != nil {
+		nsmClient.eventChan <- &meshes.EventsResponse{
+			OperationId: arReq.OperationId,
+			EventType:   meshes.EventType_ERROR,
+			Summary:     fmt.Sprintf("Error while %s %s", opName1, appName),
+			Details:     err.Error(),
+		}
+		return
+	}
+	if err := nsmClient.executeNSMHelmInstall(ctx, arReq, customConfig, nsmFolderName); err != nil {
+		nsmClient.eventChan <- &meshes.EventsResponse{
+			OperationId: arReq.OperationId,
+			EventType:   meshes.EventType_ERROR,
+			Summary:     fmt.Sprintf("Error while %s %s", opName1, appName),
+			Details:     err.Error(),
+		}
+		return
+	}
+	opName := "deployed"
+	if arReq.DeleteOp {
+		opName = "removed"
+	}
+
+	nsmClient.eventChan <- &meshes.EventsResponse{
+		OperationId: arReq.OperationId,
+		EventType:   meshes.EventType_INFO,
+		Summary:     fmt.Sprintf("%s %s successfully", appName, opName),
+		Details:     fmt.Sprintf("%s %s successfully", appName, opName),
+	}
+
+	return
+}
+
+func (nsmClient *Client) applyAllOperations(ctx context.Context, arReq *meshes.ApplyRuleRequest, operation supportedOperation,
+	yamlFileContents string, appName string, svcName string, isCustomOp bool) {
+	logrus.Debug("in the routine. . . .")
+	opName1 := "deploying"
+	if arReq.DeleteOp {
+		opName1 = "removing"
+	}
+	if err := nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp, isCustomOp); err != nil {
+		nsmClient.eventChan <- &meshes.EventsResponse{
+			OperationId: arReq.OperationId,
+			EventType:   meshes.EventType_ERROR,
+			Summary:     fmt.Sprintf("Error while %s \"%s\"", opName1, operation.name),
+			Details:     err.Error(),
+		}
+		return
+	}
+	opName := "deployed"
+	if arReq.DeleteOp {
+		opName = "removed"
+	}
+	detailedMsg := fmt.Sprintf("\"%s\" %s successfully", operation.name, opName)
+	if svcName != "" && !arReq.DeleteOp {
+		ports, err := nsmClient.getSVCPort(ctx, svcName, arReq.Namespace)
+		if err != nil {
+			nsmClient.eventChan <- &meshes.EventsResponse{
+				OperationId: arReq.OperationId,
+				EventType:   meshes.EventType_WARN,
+				Summary:     fmt.Sprintf("%s is deployed but unable to retrieve the port info for the service at the moment", appName),
+				Details:     err.Error(),
+			}
+			return
+		}
+		var portMsg string
+		if len(ports) == 1 {
+			portMsg = fmt.Sprintf("The service is possibly available on port: %v", ports)
+		} else if len(ports) > 1 {
+			portMsg = fmt.Sprintf("The service is possibly available on one of the following ports: %v", ports)
+		}
+		detailedMsg = fmt.Sprintf("%s is now %s. %s", appName, opName, portMsg)
+	}
+	logrus.Debugf("details msg: %s", detailedMsg)
+	nsmClient.eventChan <- &meshes.EventsResponse{
+		OperationId: arReq.OperationId,
+		EventType:   meshes.EventType_INFO,
+		Summary:     fmt.Sprintf("\"%s\" %s successfully", operation.name, opName),
+		Details:     detailedMsg,
+	}
+}
+
 // ApplyOperation is a method invoked to apply a particular operation on the mesh in a namespace
 func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.ApplyRuleRequest) (*meshes.ApplyRuleResponse, error) {
 	if arReq == nil {
 		return nil, errors.New("mesh client has not been created")
 	}
 
+	if arReq.OpName == customOpCommand && arReq.CustomBody == "" {
+		return nil, fmt.Errorf("operation id: %s, error: yaml body is empty for %s operation", arReq.OperationId, arReq.OpName)
+	}
+
+	if !arReq.DeleteOp {
+		nsmClient.createNamespace(ctx, arReq.Namespace)
+	}
+
+	operationData := nsmClient.prepareOperation(arReq.OpName)
+	if arReq.OpName == installNSMCommand {
+		go nsmClient.installNSM(ctx, arReq, operationData["nsmFolderName"], operationData["appName"])
+		return &meshes.ApplyRuleResponse{
+			OperationId: arReq.OperationId,
+		}, nil
+	}
+
 	op, ok := supportedOps[arReq.OpName]
 	if !ok {
 		return nil, fmt.Errorf("operation id: %s, error: %s is not a valid operation name", arReq.OperationId, arReq.OpName)
-	}
-	if arReq.OpName == customOpCommand && arReq.CustomBody == "" {
-		return nil, fmt.Errorf("operation id: %s, error: yaml body is empty for %s operation", arReq.OperationId, arReq.OpName)
 	}
 
 	var yamlFileContents string
 	var err error
 	isCustomOp := false
-	var nsmFolderName, appName, svcName string
-
-	if !arReq.DeleteOp {
-		nsmClient.createNamespace(ctx, arReq.Namespace)
-	}
-	switch arReq.OpName {
-	case customOpCommand:
-		yamlFileContents = arReq.CustomBody
-		isCustomOp = true
-	case installICMPCommand:
-		if nsmFolderName == "" {
-			nsmFolderName = "icmp-responder"
-			appName = "ICMP Application"
+	if arReq.OpName == installCNFExampleAppsCommand {
+		exampleApps := downloadExampleApps()
+		for _, app := range exampleApps {
+			yamlFileContents, err = nsmClient.executeTemplate(ctx, arReq.Username, arReq.Namespace, op.templateName)
+			if err != nil {
+				return nil, err
+			}
+			go nsmClient.applyAllOperations(ctx, arReq, op, yamlFileContents, app, operationData["svcName"], isCustomOp)
 		}
-		fallthrough
-	case installVPNCommand:
-		if nsmFolderName == "" {
-			nsmFolderName = "vpn"
-			appName = "VPN Application"
-		}
-		fallthrough
-	case installVPPICMPCommand:
-		if nsmFolderName == "" {
-			nsmFolderName = "vpp-icmp-responder"
-			appName = "VPP-ICMP Application"
-		}
-		fallthrough
-	case installNSMCommand:
-		go func() {
-			opName1 := "deploying"
-			if arReq.DeleteOp {
-				opName1 = "removing"
-			}
-			customConfig := ""
-			if nsmFolderName == "" {
-				nsmFolderName = "nsm"
-				appName = "NSM"
-				data, err := ioutil.ReadFile(path.Join("nsm", "config_templates/values.yaml"))
-				if err != nil {
-					err = errors.Wrapf(err, "unable to find the values.yml file")
-					logrus.Error(err)
-					nsmClient.eventChan <- &meshes.EventsResponse{
-						OperationId: arReq.OperationId,
-						EventType:   meshes.EventType_ERROR,
-						Summary:     fmt.Sprintf("Error while %s %s", opName1, appName),
-						Details:     err.Error(),
-					}
-					return
-				}
-				customConfig = string(data)
-				logrus.Infof("the loaded file %s", customConfig)
-			}
-			if err = nsmClient.downloadNSM(); err != nil {
-				nsmClient.eventChan <- &meshes.EventsResponse{
-					OperationId: arReq.OperationId,
-					EventType:   meshes.EventType_ERROR,
-					Summary:     fmt.Sprintf("Error while %s %s", opName1, appName),
-					Details:     err.Error(),
-				}
-				return
-			}
-			if err := nsmClient.executeNSMHelmInstall(ctx, arReq, customConfig, nsmFolderName); err != nil {
-				nsmClient.eventChan <- &meshes.EventsResponse{
-					OperationId: arReq.OperationId,
-					EventType:   meshes.EventType_ERROR,
-					Summary:     fmt.Sprintf("Error while %s %s", opName1, appName),
-					Details:     err.Error(),
-				}
-				return
-			}
-			opName := "deployed"
-			if arReq.DeleteOp {
-				opName = "removed"
-			}
-
-			nsmClient.eventChan <- &meshes.EventsResponse{
-				OperationId: arReq.OperationId,
-				EventType:   meshes.EventType_INFO,
-				Summary:     fmt.Sprintf("%s %s successfully", appName, opName),
-				Details:     fmt.Sprintf("%s %s successfully", appName, opName),
-			}
-
-			return
-		}()
-
 		return &meshes.ApplyRuleResponse{
 			OperationId: arReq.OperationId,
 		}, nil
-	case installHelloNSMApp:
-		svcName = "appa"
-		appName = "Hello NSM application"
-		fallthrough
-	default:
-		yamlFileContents, err = nsmClient.executeTemplate(ctx, arReq.Username, arReq.Namespace, op.templateName)
-		if err != nil {
-			return nil, err
-		}
 	}
 
-	go func() {
-		logrus.Debug("in the routine. . . .")
-		opName1 := "deploying"
-		if arReq.DeleteOp {
-			opName1 = "removing"
-		}
-		if err := nsmClient.applyConfigChange(ctx, yamlFileContents, arReq.Namespace, arReq.DeleteOp, isCustomOp); err != nil {
-			nsmClient.eventChan <- &meshes.EventsResponse{
-				OperationId: arReq.OperationId,
-				EventType:   meshes.EventType_ERROR,
-				Summary:     fmt.Sprintf("Error while %s \"%s\"", opName1, op.name),
-				Details:     err.Error(),
-			}
-			return
-		}
-		opName := "deployed"
-		if arReq.DeleteOp {
-			opName = "removed"
-		}
-		detailedMsg := fmt.Sprintf("\"%s\" %s successfully", op.name, opName)
-		if svcName != "" && !arReq.DeleteOp {
-			ports, err := nsmClient.getSVCPort(ctx, svcName, arReq.Namespace)
-			if err != nil {
-				nsmClient.eventChan <- &meshes.EventsResponse{
-					OperationId: arReq.OperationId,
-					EventType:   meshes.EventType_WARN,
-					Summary:     fmt.Sprintf("%s is deployed but unable to retrieve the port info for the service at the moment", appName),
-					Details:     err.Error(),
-				}
-				return
-			}
-			var portMsg string
-			if len(ports) == 1 {
-				portMsg = fmt.Sprintf("The service is possibly available on port: %v", ports)
-			} else if len(ports) > 1 {
-				portMsg = fmt.Sprintf("The service is possibly available on one of the following ports: %v", ports)
-			}
-			detailedMsg = fmt.Sprintf("%s is now %s. %s", appName, opName, portMsg)
-		}
-		logrus.Debugf("details msg: %s", detailedMsg)
-		nsmClient.eventChan <- &meshes.EventsResponse{
-			OperationId: arReq.OperationId,
-			EventType:   meshes.EventType_INFO,
-			Summary:     fmt.Sprintf("\"%s\" %s successfully", op.name, opName),
-			Details:     detailedMsg,
-		}
-	}()
+	if arReq.OpName == customOpCommand {
+		yamlFileContents = arReq.CustomBody
+		isCustomOp = true
+	}
+
+	go nsmClient.applyAllOperations(ctx, arReq, op, yamlFileContents, operationData["appName"], operationData["svcName"], isCustomOp)
 
 	return &meshes.ApplyRuleResponse{
 		OperationId: arReq.OperationId,
