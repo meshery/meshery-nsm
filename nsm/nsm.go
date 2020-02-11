@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
-	"os"
 	"path"
 	"strings"
 	"text/template"
@@ -499,24 +498,6 @@ func (nsmClient *Client) executeNSMInstall(ctx context.Context, arReq *meshes.Ap
 
 // installs any helm stuff as part of the NSM git repo
 func (nsmClient *Client) executeNSMHelmInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest, customValues, folderName string) error {
-	templateName := "nsm_install.yaml"
-	_, err := os.Stat(path.Join("nsm", "config_templates", templateName))
-	if folderName == "nsm" && err == nil {
-		content, err := nsmClient.executeTemplate(ctx, arReq.Username, arReq.Namespace, templateName)
-		if err != nil {
-			err = errors.Wrapf(err, "unable tp parse template - %s", templateName)
-			logrus.Warn(err)
-		} else {
-			if err = nsmClient.applyConfigChange(ctx, content, arReq.Namespace, arReq.DeleteOp, false); err != nil {
-				err = errors.Wrapf(err, "unable to apply template - %s", templateName)
-				logrus.Warn(err)
-			} else {
-				// all went well
-				return nil
-			}
-		}
-		logrus.Warn("attempting to apply %s failed, proceeding with the default flow", templateName)
-	}
 	logrus.Debugf("destination folder: %s", destinationFolder)
 	chart, err := chartutil.Load(path.Join(destinationFolder, "deployments", "helm", folderName))
 	if err != nil {
