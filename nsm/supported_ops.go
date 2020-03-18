@@ -1,3 +1,4 @@
+//Package nsm ...
 package nsm
 
 import "github.com/layer5io/meshery-nsm/meshes"
@@ -8,7 +9,7 @@ type supportedOperation struct {
 	// the template file name
 	templateName string
 	// the app label
-	appLabel string
+	//appLabel string
 	// // returnLogs specifies if the operation logs should be returned
 	// returnLogs bool
 	opType meshes.OpCategory
