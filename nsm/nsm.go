@@ -1,3 +1,4 @@
+//Package nsm ...
 package nsm
 
 import (
@@ -397,7 +398,7 @@ func (nsmClient *Client) installNSM(ctx context.Context, arReq *meshes.ApplyRule
 		Details:     fmt.Sprintf("%s %s successfully", appName, opName),
 	}
 
-	return
+	
 }
 
 func (nsmClient *Client) applyAllOperations(ctx context.Context, arReq *meshes.ApplyRuleRequest, operation supportedOperation,
