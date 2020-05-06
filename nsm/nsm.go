@@ -14,6 +14,7 @@ import (
 
 	"github.com/ghodss/yaml"
 	"github.com/layer5io/meshery-nsm/meshes"
+	meshutil "github.com/layer5io/meshery-nsm/pkg/ioutil"
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -77,8 +78,11 @@ func (nsmClient *Client) splitYAML(yamlContents string) ([]string, error) {
 		logrus.Error(err)
 		return nil, err
 	}
-	defer yamlDecoder.Close()
 	var err error
+	defer meshutil.SafeClose(yamlDecoder, &err)
+	if err != nil {
+		return nil, err
+	}
 	n := 0
 	data := [][]byte{}
 	ind := 0
@@ -212,15 +216,18 @@ RETRY:
 			if err = nsmClient.updateResource(ctx, res, data); err != nil {
 				if strings.Contains(err.Error(), "the server does not allow this method on the requested resource") {
 					logrus.Info("attempting to delete resource. . . ")
-					nsmClient.deleteResource(ctx, res, data)
+					err = nsmClient.deleteResource(ctx, res, data)
+					logrus.Warn(err)
 					trackRetry++
 					if trackRetry <= 3 {
 						goto RETRY
-					} // else return error
+					}
+					//TODO Death loop needs to be fixed
 				}
 				return err
 			}
-			// return err
+			// If NSM update resource succeed, just return nil
+			return nil
 		}
 	}
 	return nil
@@ -398,7 +405,6 @@ func (nsmClient *Client) installNSM(ctx context.Context, arReq *meshes.ApplyRule
 		Details:     fmt.Sprintf("%s %s successfully", appName, opName),
 	}
 
-	
 }
 
 func (nsmClient *Client) applyAllOperations(ctx context.Context, arReq *meshes.ApplyRuleRequest, operation supportedOperation,
@@ -461,7 +467,12 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 	}
 
 	if !arReq.DeleteOp {
-		nsmClient.createNamespace(ctx, arReq.Namespace)
+		err := nsmClient.createNamespace(ctx, arReq.Namespace)
+		// As we can see, if the namespace was failed to created other resource won't be deployed succeed,so here needs to return err under the namespace created failed.
+		if err != nil {
+			logrus.Errorf("Create the namespace failed %v", err)
+			return nil, err
+		}
 	}
 
 	operationData := nsmClient.prepareOperation(arReq.OpName)
