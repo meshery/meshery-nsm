@@ -517,20 +517,22 @@ func (nsmClient *Client) ApplyOperation(ctx context.Context, arReq *meshes.Apply
 	}, nil
 }
 
-// installs NSM using helm
-func (nsmClient *Client) executeNSMInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
-	data, err := ioutil.ReadFile(path.Join("nsm", "config_templates/values.yaml"))
-	if err != nil {
-		err = errors.Wrapf(err, "unable to find the values.yml file")
-		logrus.Error(err)
-		return err
-	}
-	logrus.Infof("the loaded file %s", data)
 
-	return nsmClient.executeNSMHelmInstall(ctx, arReq, string(data), "nsm")
-}
+//installs NSM using helm
+//func (nsmClient *Client) executeNSMInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest) error {
+//	data, err := ioutil.ReadFile(path.Join("nsm", "config_templates/values.yaml"))
+//	if err != nil {
+//		err = errors.Wrapf(err, "unable to find the values.yml file")
+//		logrus.Error(err)
+//		return err
+//	}
+//	logrus.Infof("the loaded file %s", data)
+//
+//	return nsmClient.executeNSMHelmInstall(ctx, arReq, string(data), "nsm")
+//}
 
-// installs any helm stuff as part of the NSM git repo
+//TODO We need to upgrade Helm v2 to v3 because v3 use kubefake that we can not need to connection with kubernetes to render the manifest.
+//installs any helm stuff as part of the NSM git repo
 func (nsmClient *Client) executeNSMHelmInstall(ctx context.Context, arReq *meshes.ApplyRuleRequest, customValues, folderName string) error {
 	logrus.Debugf("destination folder: %s", destinationFolder)
 	chart, err := chartutil.Load(path.Join(destinationFolder, "deployments", "helm", folderName))
