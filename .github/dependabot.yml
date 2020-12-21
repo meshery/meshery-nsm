@@ -1,0 +1,12 @@
+version: 2
+updates:
+- package-ecosystem: gomod
+  directory: "/"
+  schedule:
+    interval: monthly
+  open-pull-requests-limit: 10
+  ignore:
+  - dependency-name: k8s.io/helm
+    versions:
+    - ">= 2.17.a"
+    - "< 2.17.999999"
