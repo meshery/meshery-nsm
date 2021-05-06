@@ -1,4 +1,4 @@
-// package nsm - Common operations for the adapter
+// Package nsm - Common operations for the adapter
 package nsm
 
 import (

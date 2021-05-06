@@ -16,11 +16,17 @@ const (
 	// and uninstall commands on the nsm mesh
 	NSMMeshOperation = "nsm"
 
+	// HelmChart is the key name used in the map to store Helm Chart name
 	HelmChart = "helm-chart"
 
-	NSMICMPResponderSampleApp    = "nsm-icmp-responder-sample-app"
+	// NSMICMPResponderSampleApp is the name for the NSM ICMP Responder
+	// Sample Application
+	NSMICMPResponderSampleApp = "nsm-icmp-responder-sample-app"
+	// NSMVPPICMPResponderSampleApp is the name for the NSM VPP ICMP
+	// Responder Sample Application
 	NSMVPPICMPResponderSampleApp = "nsm-vpp-icmp-responder-sample-app"
-	NSMVPMSampleApp              = "nsm-vpn-sample-app"
+	// NSMVPMSampleApp is the name for the NSM VPM Sample Application
+	NSMVPMSampleApp = "nsm-vpn-sample-app"
 )
 
 var (
