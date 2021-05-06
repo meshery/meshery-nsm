@@ -42,8 +42,6 @@ func (mesh *Mesh) ApplyOperation(ctx context.Context, opReq adapter.OperationReq
 		return err
 	}
 
-	fmt.Printf("%+#v\n", operations)
-
 	e := &adapter.Event{
 		Operationid: opReq.OperationID,
 		Summary:     status.Deploying,
