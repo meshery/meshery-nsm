@@ -1,3 +1,4 @@
+// Package config - Is the package for storing adapter configuration
 package config
 
 import (
