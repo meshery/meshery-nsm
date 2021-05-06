@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"os"
 	"path"
+	"strings"
 	"time"
 
 	"github.com/layer5io/meshery-nsm/nsm"
@@ -49,7 +50,8 @@ func init() {
 func main() {
 	// Initialize Logger instance
 	log, err := logger.New(serviceName, logger.Options{
-		Format: logger.SyslogLogFormat,
+		Format:     logger.SyslogLogFormat,
+		DebugLevel: isDebugLog(),
 	})
 	if err != nil {
 		fmt.Println(err)
@@ -111,4 +113,9 @@ func main() {
 		log.Error(err)
 		os.Exit(1)
 	}
+}
+
+// isDebugLog returns true when DEBUG=true env var
+func isDebugLog() bool {
+	return strings.ToLower(os.Getenv("DEBUG")) == "true"
 }
