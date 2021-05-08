@@ -1,18 +1,26 @@
+FROM golang:1.15 as builder
 
-FROM golang:1.12.5 as bd
-RUN adduser --disabled-login appuser
-WORKDIR /github.com/layer5io/meshery-nsm
-ADD . .
-RUN go build -ldflags="-w -s" -a -o /meshery-nsm .
-RUN find . -name "*.go" -type f -delete; mv nsm /
+ARG VERSION
+ARG GIT_COMMITSHA
+WORKDIR /build
+# Copy the Go Modules manifests
+COPY go.mod go.mod
+COPY go.sum go.sum
+# cache deps before building and copying source so that we don't need to re-download as much
+# and so that source changes don't invalidate our downloaded layer
+RUN go mod download
+# Copy the go source
+COPY main.go main.go
+COPY internal/ internal/
+COPY nsm/ nsm/
+# Build
+RUN CGO_ENABLED=1 GOOS=linux GOARCH=amd64 GO111MODULE=on go build -ldflags="-w -s -X main.version=$VERSION -X main.gitsha=$GIT_COMMITSHA" -a -o meshery-nsm main.go
 
-FROM alpine
-RUN apk --update add ca-certificates
-RUN mkdir /lib64 && ln -s /lib/libc.musl-x86_64.so.1 /lib64/ld-linux-x86-64.so.2
-COPY --from=bd /meshery-nsm /app/
-COPY --from=bd /nsm /app/nsm
-COPY --from=bd /etc/passwd /etc/passwd
-USER appuser
-WORKDIR /app
-CMD ./meshery-nsm
-
+# Use distroless as minimal base image to package the manager binary
+# Refer to https://github.com/GoogleContainerTools/distroless for more details
+FROM gcr.io/distroless/base:nonroot-amd64
+ENV DISTRO="debian"
+ENV GOARCH="amd64"
+WORKDIR $HOME/.meshery
+COPY --from=builder /build/meshery-nsm .
+ENTRYPOINT ["./meshery-nsm"]
