@@ -51,6 +51,8 @@ var (
 	// when an invalid addon operation is requested
 	ErrCustomOperationCode = "1013"
 
+	// ErrOpInvalidCode represents the errors which are generated
+	// when an invalid operation is requested
 	ErrOpInvalidCode = "1014"
 
 	// ErrOpInvalid represents the errors which are generated
