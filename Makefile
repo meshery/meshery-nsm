@@ -28,4 +28,4 @@ run:
 
 .PHONY: error
 error:
-	go run github.com/layer5io/meshkit/cmd/errorutil -d . update
+	go run github.com/layer5io/meshkit/cmd/errorutil -d . update -i ./helpers -o ./helpers

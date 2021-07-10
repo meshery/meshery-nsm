@@ -25,14 +25,6 @@
       "path": "internal/config/error.go"
     },
     {
-      "name": "ErrEmptyConfig",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "internal/config/error.go"
-    },
-    {
       "name": "ErrInstallNSMCode",
       "old_code": "1003",
       "code": "1003",
@@ -126,14 +118,6 @@
       "code": "1014",
       "code_is_literal": true,
       "code_is_int": true,
-      "path": "nsm/error.go"
-    },
-    {
-      "name": "ErrOpInvalid",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
       "path": "nsm/error.go"
     }
   ],
@@ -289,25 +273,8 @@
       }
     ]
   },
-  "call_expr_codes": [
-    {
-      "name": "ErrEmptyConfig",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "internal/config/error.go"
-    },
-    {
-      "name": "ErrOpInvalid",
-      "old_code": "",
-      "code": "",
-      "code_is_literal": false,
-      "code_is_int": false,
-      "path": "nsm/error.go"
-    }
-  ],
-  "deprecated_new_default": null,
+  "call_expr_codes": [],
+  "deprecated_new_default": [],
   "errors_raw": {
     "ErrApplyHelmChartCode": [
       {
@@ -315,7 +282,7 @@
         "code": "",
         "severity": "Alert",
         "long_description": "",
-        "short_description": "error applying helm chart: ",
+        "short_description": "Error applying helm chart: ",
         "probable_cause": "",
         "suggested_remediation": ""
       }
@@ -326,7 +293,18 @@
         "code": "",
         "severity": "Alert",
         "long_description": "",
-        "short_description": "error converting app version to chart version: ",
+        "short_description": "Error converting app version to chart version: ",
+        "probable_cause": "",
+        "suggested_remediation": ""
+      }
+    ],
+    "ErrCreatingHelmIndexCode": [
+      {
+        "name": "ErrCreatingHelmIndexCode",
+        "code": "",
+        "severity": "Alert",
+        "long_description": "",
+        "short_description": "Error with nsm operation: ",
         "probable_cause": "",
         "suggested_remediation": ""
       }
@@ -359,7 +337,7 @@
         "code": "",
         "severity": "Alert",
         "long_description": "",
-        "short_description": "error decoding yaml: ",
+        "short_description": "Error decoding yaml: ",
         "probable_cause": "",
         "suggested_remediation": ""
       }
@@ -381,7 +359,7 @@
         "code": "",
         "severity": "Alert",
         "long_description": "",
-        "short_description": "entry: \nwith app version : \ndoes not exists",
+        "short_description": "Entry: \nwith app version : \ndoes not exists",
         "probable_cause": "",
         "suggested_remediation": ""
       }
@@ -414,21 +392,12 @@
         "code": "",
         "severity": "Alert",
         "long_description": "",
-        "short_description": "either the repo : \ndoes not exists or is corrupt: ",
+        "short_description": "Either the repo : \ndoes not exists or is corrupt: ",
         "probable_cause": "",
         "suggested_remediation": ""
       }
     ],
     "ErrInstallNSMCode": [
-      {
-        "name": "ErrInstallNSMCode",
-        "code": "",
-        "severity": "Alert",
-        "long_description": "",
-        "short_description": "Error with nsm operation: ",
-        "probable_cause": "",
-        "suggested_remediation": ""
-      },
       {
         "name": "ErrInstallNSMCode",
         "code": "",

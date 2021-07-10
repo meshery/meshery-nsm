@@ -67,22 +67,22 @@ func ErrInstallNSM(err error) error {
 
 // ErrCreatingHelmIndex is the error for creating helm index
 func ErrCreatingHelmIndex(err error) error {
-	return errors.New(ErrInstallNSMCode, errors.Alert, []string{"Error with nsm operation: ", err.Error()}, []string{}, []string{}, []string{})
+	return errors.New(ErrCreatingHelmIndexCode, errors.Alert, []string{"Error with nsm operation: ", err.Error()}, []string{}, []string{}, []string{})
 }
 
 // ErrEntryWithAppVersionNotExists is the error when an entry with the given app version is not found
 func ErrEntryWithAppVersionNotExists(entry, appVersion string) error {
-	return errors.New(ErrEntryWithAppVersionNotExistsCode, errors.Alert, []string{"entry: ", entry, "with app version : ", appVersion, "does not exists"}, []string{}, []string{}, []string{})
+	return errors.New(ErrEntryWithAppVersionNotExistsCode, errors.Alert, []string{"Entry: ", entry, "with app version : ", appVersion, "does not exists"}, []string{}, []string{}, []string{})
 }
 
 // ErrHelmRepositoryNotFound is the error when no valid remote helm repository is found
 func ErrHelmRepositoryNotFound(repo string, err error) error {
-	return errors.New(ErrHelmRepositoryNotFoundCode, errors.Alert, []string{"either the repo : ", repo, "does not exists or is corrupt: ", err.Error()}, []string{}, []string{}, []string{})
+	return errors.New(ErrHelmRepositoryNotFoundCode, errors.Alert, []string{"Either the repo : ", repo, "does not exists or is corrupt: ", err.Error()}, []string{}, []string{}, []string{})
 }
 
 // ErrDecodeYaml is the error when the yaml unmarshal fails
 func ErrDecodeYaml(err error) error {
-	return errors.New(ErrDecodeYamlCode, errors.Alert, []string{"error decoding yaml: ", err.Error()}, []string{}, []string{}, []string{})
+	return errors.New(ErrDecodeYamlCode, errors.Alert, []string{"Error decoding yaml: ", err.Error()}, []string{}, []string{}, []string{})
 }
 
 // ErrMeshConfig is the error for mesh config
@@ -92,12 +92,12 @@ func ErrMeshConfig(err error) error {
 
 // ErrApplyHelmChart is the error for applying helm chart
 func ErrApplyHelmChart(err error) error {
-	return errors.New(ErrApplyHelmChartCode, errors.Alert, []string{"error applying helm chart: ", err.Error()}, []string{}, []string{}, []string{})
+	return errors.New(ErrApplyHelmChartCode, errors.Alert, []string{"Error applying helm chart: ", err.Error()}, []string{}, []string{}, []string{})
 }
 
 // ErrConvertingAppVersionToChartVersion is the error for converting app version to chart version
 func ErrConvertingAppVersionToChartVersion(err error) error {
-	return errors.New(ErrConvertingAppVersionToChartVersionCode, errors.Alert, []string{"error converting app version to chart version: ", err.Error()}, []string{}, []string{}, []string{})
+	return errors.New(ErrConvertingAppVersionToChartVersionCode, errors.Alert, []string{"Error converting app version to chart version: ", err.Error()}, []string{}, []string{}, []string{})
 }
 
 // ErrCreatingNSMMeshClient is the error for streaming event

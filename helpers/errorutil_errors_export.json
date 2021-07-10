@@ -32,18 +32,18 @@
     "1003": {
       "name": "ErrInstallNSMCode",
       "code": "1003",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Error with nsm operation: ",
       "probable_cause": "",
       "suggested_remediation": ""
     },
     "1004": {
       "name": "ErrCreatingHelmIndexCode",
       "code": "1004",
-      "severity": "",
+      "severity": "Alert",
       "long_description": "",
-      "short_description": "",
+      "short_description": "Error with nsm operation: ",
       "probable_cause": "",
       "suggested_remediation": ""
     },
@@ -52,7 +52,7 @@
       "code": "1005",
       "severity": "Alert",
       "long_description": "",
-      "short_description": "entry: \nwith app version : \ndoes not exists",
+      "short_description": "Entry: \nwith app version : \ndoes not exists",
       "probable_cause": "",
       "suggested_remediation": ""
     },
@@ -61,7 +61,7 @@
       "code": "1006",
       "severity": "Alert",
       "long_description": "",
-      "short_description": "either the repo : \ndoes not exists or is corrupt: ",
+      "short_description": "Either the repo : \ndoes not exists or is corrupt: ",
       "probable_cause": "",
       "suggested_remediation": ""
     },
@@ -70,7 +70,7 @@
       "code": "1007",
       "severity": "Alert",
       "long_description": "",
-      "short_description": "error decoding yaml: ",
+      "short_description": "Error decoding yaml: ",
       "probable_cause": "",
       "suggested_remediation": ""
     },
@@ -88,7 +88,7 @@
       "code": "1009",
       "severity": "Alert",
       "long_description": "",
-      "short_description": "error applying helm chart: ",
+      "short_description": "Error applying helm chart: ",
       "probable_cause": "",
       "suggested_remediation": ""
     },
@@ -97,7 +97,7 @@
       "code": "1010",
       "severity": "Alert",
       "long_description": "",
-      "short_description": "error converting app version to chart version: ",
+      "short_description": "Error converting app version to chart version: ",
       "probable_cause": "",
       "suggested_remediation": ""
     },
