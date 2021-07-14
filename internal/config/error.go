@@ -21,15 +21,15 @@ import (
 const (
 	// ErrEmptyConfigCode represents the error when the configuration is either empty
 	// or is invalid
-	ErrEmptyConfigCode = "11300"
+	ErrEmptyConfigCode = "1014"
 
 	// ErrGetLatestReleasesCode represents the error which occurs during the process of getting
 	// latest releases
-	ErrGetLatestReleasesCode = "nsm_mesh_test_code"
+	ErrGetLatestReleasesCode = "1000"
 
 	// ErrGetLatestReleaseNamesCode represents the error which occurs during the process of extracting
 	// release names
-	ErrGetLatestReleaseNamesCode = "nsm_mesh_test_code"
+	ErrGetLatestReleaseNamesCode = "1001"
 )
 
 var (

@@ -11,51 +11,51 @@ var (
 
 	// ErrInstallNSMCode represents the errors which are generated
 	// during nsm mesh install process
-	ErrInstallNSMCode = "nsm_test_code"
+	ErrInstallNSMCode = "1002"
 
 	// ErrCreatingHelmIndexCode represents the errors which are generated
 	// during creation of helm index
-	ErrCreatingHelmIndexCode = "nsm_test_code"
+	ErrCreatingHelmIndexCode = "1003"
 
 	// ErrEntryWithAppVersionNotExistsCode represents the error which is generated
 	// when no entry is found with specified name and app version
-	ErrEntryWithAppVersionNotExistsCode = "nsm_test_code"
+	ErrEntryWithAppVersionNotExistsCode = "1004"
 
 	// ErrHelmRepositoryNotFoundCode represents the error which is generated when
 	// no valid helm repository is found
-	ErrHelmRepositoryNotFoundCode = "nsm_test_code"
+	ErrHelmRepositoryNotFoundCode = "1005"
 
 	// ErrDecodeYamlCode represents the error which is generated when yaml
 	// decode process fails
-	ErrDecodeYamlCode = "nsm_test_code"
+	ErrDecodeYamlCode = "1006"
 
 	// ErrMeshConfigCode represents the errors which are generated
 	// when an invalid mesh config is found
-	ErrMeshConfigCode = "nsm_test_code"
+	ErrMeshConfigCode = "1007"
 
 	// ErrApplyHelmChartCode represents the error which are generated
 	// during the process of applying helm chart
-	ErrApplyHelmChartCode = "nsm_test_code"
+	ErrApplyHelmChartCode = "1008"
 
 	// ErrConvertingAppVersionToChartVersionCode represents the errors which are generated
 	// during the process of converting app version to chart version
-	ErrConvertingAppVersionToChartVersionCode = "nsm_test_code"
+	ErrConvertingAppVersionToChartVersionCode = "1009"
 
 	// ErrCreatingNSMMeshClientCode represents the errors which are generated
 	// during creating nsm client process
-	ErrCreatingNSMMeshClientCode = "nsm_test_code"
+	ErrCreatingNSMMeshClientCode = "1010"
 
 	// ErrSampleAppCode represents the errors which are generated
 	// duing sample app installation
-	ErrSampleAppCode = "nsm_test_code"
+	ErrSampleAppCode = "1011"
 
 	// ErrCustomOperationCode represents the errors which are generated
 	// when an invalid addon operation is requested
-	ErrCustomOperationCode = "nsm_test_code"
+	ErrCustomOperationCode = "1012"
 
 	// ErrOpInvalid represents the errors which are generated
 	// when an invalid operation is requested
-	ErrOpInvalidCode = "nsm_test_code"
+	ErrOpInvalidCode = "1013"
 
 	// ErrOpInvalid is an error when an invalid operation is requested
 	ErrOpInvalid = errors.New(ErrOpInvalidCode, errors.Alert, []string{"Invalid Operation"}, []string{"Opeartion is not supported by the adapter"}, []string{}, []string{})

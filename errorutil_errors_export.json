@@ -1,0 +1,141 @@
+{
+  "component_name": "meshery-nsm",
+  "component_type": "adapter",
+  "errors": {
+    "1000": {
+      "name": "ErrGetLatestReleasesCode",
+      "code": "1000",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Unable to fetch release info",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1001": {
+      "name": "ErrGetLatestReleaseNamesCode",
+      "code": "1001",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Failed to extract release names",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1002": {
+      "name": "ErrInstallNSMCode",
+      "code": "1002",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Error with nsm opeatation",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1003": {
+      "name": "ErrCreatingHelmIndexCode",
+      "code": "1003",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Error while creating Helm Index",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1004": {
+      "name": "ErrEntryWithAppVersionNotExistsCode",
+      "code": "1004",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Entry for the app version does not exist",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1005": {
+      "name": "ErrHelmRepositoryNotFoundCode",
+      "code": "1005",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Helm repo not found",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1006": {
+      "name": "ErrDecodeYamlCode",
+      "code": "1006",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Error occured while decoding YAML",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1007": {
+      "name": "ErrMeshConfigCode",
+      "code": "1007",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Error configuration mesh",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1008": {
+      "name": "ErrApplyHelmChartCode",
+      "code": "1008",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Error occured while applying Helm Chart",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1009": {
+      "name": "ErrConvertingAppVersionToChartVersionCode",
+      "code": "1009",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Error occured while converting app version to chart version",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1010": {
+      "name": "ErrCreatingNSMMeshClientCode",
+      "code": "1010",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Unable to create a new NSM client",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1011": {
+      "name": "ErrSampleAppCode",
+      "code": "1011",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Error with sample app operation",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1012": {
+      "name": "ErrCustomOperationCode",
+      "code": "1012",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Error with custom operation",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1013": {
+      "name": "ErrOpInvalidCode",
+      "code": "1013",
+      "severity": "Alert",
+      "long_description": "Opeartion is not supported by the adapter",
+      "short_description": "Invalid Operation",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    },
+    "1014": {
+      "name": "ErrEmptyConfigCode",
+      "code": "1014",
+      "severity": "Alert",
+      "long_description": "",
+      "short_description": "Config is empty",
+      "probable_cause": "",
+      "suggested_remediation": ""
+    }
+  }
+}
