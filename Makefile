@@ -1,3 +1,11 @@
+GOPATH = $(shell go env GOPATH)
+
+check: error
+	golangci-lint run
+
+check-clean-cache:
+	golangci-lint cache clean
+
 protoc-setup:
 	cd meshes
 	wget https://raw.githubusercontent.com/layer5io/meshery/master/meshes/meshops.proto
@@ -17,3 +25,7 @@ docker-run:
 
 run:
 	DEBUG=true go run main.go
+
+.PHONY: error
+error:
+	go run github.com/layer5io/meshkit/cmd/errorutil -d . update -i ./helpers -o ./helpers
