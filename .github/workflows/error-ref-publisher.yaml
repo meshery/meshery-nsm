@@ -58,6 +58,6 @@ jobs:
             echo "No changes to commit"
             exit
           fi
-          git add ./docs/_data/errorref/meshkit_errors_export.json
-          git commit -m "[Docs] Error Code Reference: Updated codes for MeshKit library" --signoff
+          git add ./docs/_data/errorref/nsm_errors_export.json
+          git commit -m "[Docs] Error Code Reference: Updated codes for NSM adapter" --signoff
           git push origin master
