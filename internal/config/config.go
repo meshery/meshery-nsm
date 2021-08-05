@@ -3,6 +3,7 @@ package config
 
 import (
 	"path"
+	"strings"
 
 	"github.com/layer5io/meshery-adapter-library/common"
 	"github.com/layer5io/meshery-adapter-library/config"
@@ -13,10 +14,6 @@ import (
 )
 
 const (
-	// NSMMeshOperation is the default name for the install
-	// and uninstall commands on the nsm mesh
-	NSMMeshOperation = "nsm"
-
 	// HelmChart is the key name used in the map to store Helm Chart name
 	HelmChart = "helm-chart"
 
@@ -31,6 +28,10 @@ const (
 )
 
 var (
+	// NSMMeshOperation is the default name for the install
+	// and uninstall commands on the nsm mesh
+	NSMMeshOperation = strings.ToLower(smp.ServiceMesh_NETWORK_SERVICE_MESH.Enum().String())
+
 	configRootPath = path.Join(utils.GetHome(), ".meshery")
 
 	// Config is the collection of ServerConfig, MeshConfig and ProviderConfig
