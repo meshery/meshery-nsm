@@ -33,7 +33,7 @@ import (
 
 var (
 	serviceName = "nsm-adaptor"
-	version     = "none"
+	version     = "edge"
 	gitsha      = "none"
 )
 
