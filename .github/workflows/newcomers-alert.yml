@@ -1,4 +1,4 @@
-  name: Newcomers Alert
+name: Newcomers Alert
 on:
   issues:
     types: [labeled]
