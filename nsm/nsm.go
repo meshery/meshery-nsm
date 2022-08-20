@@ -9,7 +9,8 @@ import (
 	"github.com/layer5io/meshery-adapter-library/common"
 	adapterconfig "github.com/layer5io/meshery-adapter-library/config"
 	"github.com/layer5io/meshery-adapter-library/status"
-	internalConfig "github.com/layer5io/meshery-nsm/internal/config"
+	internalconfig "github.com/layer5io/meshery-nsm/internal/config"
+	"github.com/layer5io/meshkit/errors"
 	"github.com/layer5io/meshkit/logger"
 )
 
@@ -46,17 +47,18 @@ func (mesh *Mesh) ApplyOperation(ctx context.Context, opReq adapter.OperationReq
 		Operationid: opReq.OperationID,
 		Summary:     status.Deploying,
 		Details:     "Operation is not supported",
+		Component:   internalconfig.ServerConfig["type"],
+		ComponentName: internalconfig.ServerConfig["name"],
 	}
 
 	switch opReq.OperationName {
-	case internalConfig.NSMMeshOperation:
+	case internalconfig.NSMMeshOperation:
 		go func(hh *Mesh, ee *adapter.Event) {
 			version := string(operations[opReq.OperationName].Versions[0])
 			stat, err := hh.installNSMMesh(opReq.IsDeleteOperation, version, opReq.Namespace)
 			if err != nil {
-				e.Summary = fmt.Sprintf("Error while %s NSM service mesh", stat)
-				e.Details = err.Error()
-				hh.StreamErr(e, err)
+				summary := fmt.Sprintf("Error while %s NSM service mesh", stat)
+				hh.streamErr(summary, e, err)
 				return
 			}
 			ee.Summary = fmt.Sprintf("NSM service mesh %s successfully", stat)
@@ -68,9 +70,8 @@ func (mesh *Mesh) ApplyOperation(ctx context.Context, opReq adapter.OperationReq
 			appName := operations[opReq.OperationName].AdditionalProperties[common.ServiceName]
 			stat, err := hh.installSampleApp(opReq.Namespace, opReq.IsDeleteOperation, operations[opReq.OperationName].Templates)
 			if err != nil {
-				e.Summary = fmt.Sprintf("Error while %s %s application", stat, appName)
-				e.Details = err.Error()
-				hh.StreamErr(e, err)
+				summary := fmt.Sprintf("Error while %s %s application", stat, appName)
+				hh.streamErr(summary, e, err)
 				return
 			}
 			ee.Summary = fmt.Sprintf("%s application %s successfully", appName, stat)
@@ -81,26 +82,24 @@ func (mesh *Mesh) ApplyOperation(ctx context.Context, opReq adapter.OperationReq
 		go func(hh *Mesh, ee *adapter.Event) {
 			stat, err := hh.applyCustomOperation(opReq.Namespace, opReq.CustomBody, opReq.IsDeleteOperation)
 			if err != nil {
-				e.Summary = fmt.Sprintf("Error while %s custom operation", stat)
-				e.Details = err.Error()
-				hh.StreamErr(e, err)
+				summary := fmt.Sprintf("Error while %s custom operation", stat)
+				hh.streamErr(summary, e, err)
 				return
 			}
 			ee.Summary = fmt.Sprintf("Manifest %s successfully", status.Deployed)
 			ee.Details = ""
 			hh.StreamInfo(e)
 		}(mesh, e)
-	case internalConfig.NSMICMPResponderSampleApp, internalConfig.NSMVPPICMPResponderSampleApp, internalConfig.NSMVPMSampleApp:
+	case internalconfig.NSMICMPResponderSampleApp, internalconfig.NSMVPPICMPResponderSampleApp, internalconfig.NSMVPMSampleApp:
 		go func(hh *Mesh, ee *adapter.Event) {
-			version := string(operations[internalConfig.NSMMeshOperation].Versions[0])
-			chart := operations[opReq.OperationName].AdditionalProperties[internalConfig.HelmChart]
+			version := string(operations[internalconfig.NSMMeshOperation].Versions[0])
+			chart := operations[opReq.OperationName].AdditionalProperties[internalconfig.HelmChart]
 			appName := operations[opReq.OperationName].AdditionalProperties[common.ServiceName]
 
 			stat, err := hh.installNSMSampleApp(opReq.Namespace, chart, version, opReq.IsDeleteOperation)
 			if err != nil {
-				e.Summary = fmt.Sprintf("Error while %s %s application", stat, appName)
-				e.Details = err.Error()
-				hh.StreamErr(e, err)
+				summary := fmt.Sprintf("Error while %s %s application", stat, appName)
+				hh.streamErr(summary, e, err)
 				return
 			}
 			ee.Summary = fmt.Sprintf("%s application %s successfully", appName, stat)
@@ -119,9 +118,8 @@ func (mesh *Mesh) ApplyOperation(ctx context.Context, opReq adapter.OperationReq
 				Annotations: make(map[string]string),
 			})
 			if err != nil {
-				e.Summary = fmt.Sprintf("Error while %s %s test", status.Running, name)
-				e.Details = err.Error()
-				hh.StreamErr(e, err)
+				summary := fmt.Sprintf("Error while %s %s test", status.Running, name)
+				hh.streamErr(summary, e, err)
 				return
 			}
 			ee.Summary = fmt.Sprintf("%s test %s successfully", name, status.Completed)
@@ -129,8 +127,17 @@ func (mesh *Mesh) ApplyOperation(ctx context.Context, opReq adapter.OperationReq
 			hh.StreamInfo(e)
 		}(mesh, e)
 	default:
-		mesh.StreamErr(e, ErrOpInvalid)
+		mesh.streamErr("Invalid operation", e, ErrOpInvalid)
 	}
 
 	return nil
+}
+
+func(mesh *Mesh) streamErr(summary string, e *adapter.Event, err error) {
+	e.Summary = summary
+	e.Details = err.Error()
+	e.ErrorCode = errors.GetCode(err)
+	e.ProbableCause = errors.GetCause(err)
+	e.SuggestedRemediation = errors.GetRemedy(err)
+	mesh.StreamErr(e, err)
 }
