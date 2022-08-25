@@ -44,7 +44,7 @@ func (mesh *Mesh) ApplyOperation(ctx context.Context, opReq adapter.OperationReq
 	}
 
 	e := &adapter.Event{
-		Operationid: opReq.OperationID,
+		OperationId: opReq.OperationID,
 		Summary:     status.Deploying,
 		Details:     "Operation is not supported",
 		Component:   internalconfig.ServerConfig["type"],
@@ -107,11 +107,11 @@ func (mesh *Mesh) ApplyOperation(ctx context.Context, opReq adapter.OperationReq
 			hh.StreamInfo(e)
 		}(mesh, e)
 	case common.SmiConformanceOperation:
-		go func(hh *Mesh, ee *adapter.Event) {
+		go func(hh *Mesh, ee *meshes.EventsResponse) {
 			name := operations[opReq.OperationName].Description
 			_, err := hh.RunSMITest(adapter.SMITestOptions{
 				Ctx:         context.TODO(),
-				OperationID: ee.Operationid,
+				OperationID: ee.OperationId,
 				Manifest:    SMIManifest,
 				Namespace:   "meshery",
 				Labels:      make(map[string]string),
