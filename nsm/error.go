@@ -55,6 +55,9 @@ var (
 	// when an invalid operation is requested
 	ErrOpInvalidCode = "1014"
 
+	// ErrLoadNamespaceCode implies error while finding namespace
+	ErrLoadNamespaceCode = "1015"
+
 	// ErrOpInvalid represents the errors which are generated
 	// when an invalid operation is requested
 	ErrOpInvalid = errors.New(ErrOpInvalidCode, errors.Alert, []string{"Invalid operation"}, []string{}, []string{}, []string{})
@@ -113,4 +116,9 @@ func ErrSampleApp(err error) error {
 // ErrCustomOperation is the error for streaming event
 func ErrCustomOperation(err error) error {
 	return errors.New(ErrCustomOperationCode, errors.Alert, []string{"Error with custom operation: ", err.Error()}, []string{}, []string{}, []string{})
+}
+
+// ErrLoadNamespace implies error while finding namespace
+func ErrLoadNamespace(err error, str string) error {
+	return errors.New(ErrLoadNamespaceCode, errors.Alert, []string{"Error while labeling namespace:", str}, []string{err.Error()}, []string{}, []string{})
 }
