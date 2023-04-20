@@ -33,7 +33,7 @@ import (
 )
 
 var (
-	serviceName = "nsm-adaptor"
+	serviceName = "nsm-adapter"
 	version     = "edge"
 	gitsha      = "none"
 )
@@ -47,7 +47,7 @@ func init() {
 	}
 }
 
-// main is the entrypoint of the adaptor
+// main is the entrypoint of the adapter
 func main() {
 	// Initialize Logger instance
 	log, err := logger.New(serviceName, logger.Options{
