@@ -23,6 +23,7 @@ import (
 
 	"github.com/layer5io/meshery-nsm/nsm"
 	"github.com/layer5io/meshkit/logger"
+	"github.com/layer5io/meshkit/utils/events"
 
 	// "github.com/layer5io/meshkit/tracing"
 	"github.com/layer5io/meshery-adapter-library/adapter"
@@ -32,7 +33,7 @@ import (
 )
 
 var (
-	serviceName = "nsm-adaptor"
+	serviceName = "nsm-adapter"
 	version     = "edge"
 	gitsha      = "none"
 )
@@ -46,7 +47,7 @@ func init() {
 	}
 }
 
-// main is the entrypoint of the adaptor
+// main is the entrypoint of the adapter
 func main() {
 	// Initialize Logger instance
 	log, err := logger.New(serviceName, logger.Options{
@@ -97,11 +98,11 @@ func main() {
 	// }
 
 	// Initialize Handler intance
-	handler := nsm.New(cfg, log, kubeconfigHandler)
+	e := events.NewEventStreamer()
+	handler := nsm.New(cfg, log, kubeconfigHandler, e)
 	handler = adapter.AddLogger(log, handler)
-
+	service.EventStreamer = e
 	service.Handler = handler
-	service.Channel = make(chan interface{}, 10)
 	service.StartedAt = time.Now()
 	service.Version = version
 	service.GitSHA = gitsha
