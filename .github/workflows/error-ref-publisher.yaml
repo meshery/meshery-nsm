@@ -12,17 +12,17 @@ on:
 jobs:
   error-ref:
     name: Error codes utility
-    if: github.repository == 'meshery/meshery-nsm'
+    if: github.repository == 'meshery-extensions/meshery-nsm'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@master
         # token here with write access to nsm repo
         with:
           token: ${{ secrets.GH_ACCESS_TOKEN }}
           ref: 'master'
 
       - name: Setup Go
-        uses: actions/setup-go@v1
+        uses: actions/setup-go@master
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -32,7 +32,7 @@ jobs:
          go run github.com/layer5io/meshkit/cmd/errorutil -d . update --skip-dirs meshery -i ./helpers -o ./helpers
       # to update errorutil* files in meshkit repo
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@master
         with:
           commit_user_name: l5io
           commit_user_email: ci@layer5.io
@@ -43,7 +43,7 @@ jobs:
 
       # to push changes to meshery docs
       - name: Checkout meshery
-        uses: actions/checkout@v2
+        uses: actions/checkout@master
         with:
           repository: "meshery/meshery"
           # token with write access to meshery repository
@@ -56,7 +56,7 @@ jobs:
           echo '{ "errors_export": "" }' | jq --slurpfile export ./helpers/errorutil_errors_export.json '.errors_export = $export[0]' > ./meshery/docs/_data/errorref/nsm_errors_export.json
 
       - name: Commit changes
-        uses: stefanzweifel/git-auto-commit-action@v4
+        uses: stefanzweifel/git-auto-commit-action@master
         with:
           repository: ./meshery
           commit_user_name: l5io
